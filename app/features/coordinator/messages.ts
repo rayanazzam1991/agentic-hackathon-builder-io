@@ -1,0 +1,156 @@
+export const coordinatorMessages = {
+  discord: {
+    title: "Ask in Discord",
+    peopleTitle: "People and roles",
+    loadRoles: "Load server roles",
+    reloadRoles: "Reload roles",
+    loadingRoles: "Loading roles…",
+    rolesHelp:
+      "Map each responsibility to a Discord role. Save the question draft again to apply the current question owner's mapping. Mapping a role does not grant app access or prove who may approve a decision.",
+    notMapped: "Not mapped",
+    unavailableRole: "No longer available",
+    missingRole:
+      "This role is no longer available. Choose an available role and save the mapping and draft again.",
+    mentionAllowed:
+      "The bot can mention this role in the connected channel. Permission is checked again before sending.",
+    mentionDenied:
+      "The bot cannot currently notify this role in this channel. You can save a draft. Ask a server administrator to review effective channel permissions before sending, or choose an authorized recipient.",
+    mentionUnknown:
+      "Notification permission has not been verified. You can save a draft; reload roles to check. Sending requires a fresh permission check.",
+    noRoles:
+      "No selectable roles found. Create a project role in this Discord server, then reload roles.",
+    saveRoles: "Save role mappings",
+    rolesSaved:
+      "Role mappings saved. Existing drafts and sent messages are unchanged; save a new draft to use the mapping.",
+    recipient: "Role to notify:",
+    setup:
+      "Save your Discord bot token securely, then verify a server text channel.",
+    keys: "Open API keys",
+    channel: "Discord channel URL",
+    connect: "Verify and connect",
+    question: "Question for the team",
+    saveDraft: "Save unsent draft",
+    reviewSend: "Review and send…",
+    openMessage: "Open question in Discord",
+    openReply: "Open recorded reply in Discord",
+    check: "Check replies",
+    checking: "Checking replies…",
+    coverage: "Latest 100 channel messages checked at",
+    partial:
+      "The result reached the 100-message limit. Earlier replies may be missing.",
+    empty: "No direct human replies were found in this captured batch.",
+    record: "Record this reply",
+    identity:
+      "Verify who answered before recording. A Discord username does not establish a product-owner role; replies do not approve decisions.",
+    confirmTitle: "Send this question to Discord?",
+    confirmHelp:
+      "This posts the exact text below to the linked channel. Only the explicitly listed recipient role may be notified. Other mentions are disabled.",
+    send: "Send question",
+    sending: "Sending…",
+    status: {
+      draft: "Draft saved · not sent",
+      sending: "Delivery pending · wait a minute, then check replies",
+      sent: "Question sent · confirmed by readback",
+      uncertain:
+        "Delivery unconfirmed · check replies to reconcile; do not resend",
+    },
+  },
+  designProvider: "Design source",
+  stitch: "Google Stitch",
+  figma: "Figma",
+  noDesign: "No design (Jira and Confluence only)",
+  loadStitch: "Load Stitch projects",
+  loadingStitch: "Loading designs…",
+  stitchProject: "Stitch project",
+  stitchScreen: "Stitch screen",
+  selectProject: "Select a project",
+  selectScreen: "Select a screen",
+  noStitchDesigns: "No designs found in this connection.",
+  includeFigma: "Include Figma evidence (uncheck for Jira and Confluence only)",
+  figmaExcluded:
+    "No design source was included in this review. Design contents have not been verified.",
+  importTitle: "Review live sources",
+  importHelp:
+    "Read the selected sources and save a new review. Existing reviews stay unchanged. Nothing is sent or published.",
+  jiraUrl: "Jira story URL",
+  confluenceUrl: "Confluence page URL",
+  figmaUrl: "Figma Design URL with node-id",
+  importing: "Reading sources…",
+  importSources: "Import live evidence",
+  connections: "Manage connections",
+  live: "Live source snapshots",
+  liveNotice:
+    "Captured from connected providers. These snapshots do not automatically refresh. Import again for a new review of current sources. Discord questions require owner confirmation. Specification changes remain previews.",
+  openSource: "Open source",
+  captured: "Captured",
+  agentDeliveryFailed:
+    "The agent did not accept this request. Your feature is saved; retry from the agent panel.",
+  nav: "Features",
+  title: "Feature reviews",
+  create: "Start sample review",
+  creating: "Creating sample…",
+  sample: "Sample mode",
+  sampleNotice:
+    "Synthetic sources and manually recorded replies. No live integrations, messages or publishing.",
+  empty: "Start with a cancellation policy mismatch",
+  emptyHelp:
+    "Walk through one question, a recorded reply, a proposed decision and human approval.",
+  loading: "Loading feature…",
+  retry: "Try again",
+  error: "Could not complete this action. Try again.",
+  back: "All features",
+  sources: "Source evidence",
+  question: "Review the business rules",
+  owner: "Question owner",
+  assign: "Save owner",
+  saving: "Saving…",
+  draft: "Suggested question",
+  delivery: "Suggestion only",
+  reply: "Record a reply",
+  replyText: "Reply text",
+  respondent: "Reply from",
+  saveReply: "Save reply",
+  liveReplyHint:
+    "Record an actual answer from the responsible person. No reply is fetched or sent automatically.",
+  replyHint:
+    "Paste a real answer, or use the sample reply below for this walkthrough.",
+  sampleReply:
+    "Sample reply: Use 48 hours for all new orders. The 24-hour rule is outdated.",
+  proposal: "Propose a decision",
+  rule: "Specification paragraph",
+  rationale: "Reason and evidence",
+  saveProposal: "Save proposal",
+  editReply: "Record a corrected reply",
+  review: "Review decision",
+  approve: "Approve decision",
+  approving: "Approving…",
+  approvalTitle: "Approve this business decision?",
+  approvalHelp:
+    "Approval records your identity and the current proposal. The specification change remains a preview.",
+  cancel: "Keep reviewing",
+  approved: "Decision approved",
+  approvedBy: "Approved by",
+  approvalOwner: "Only the feature owner can approve this decision.",
+  preview: "Specification update preview",
+  before: "Current paragraph",
+  after: "Proposed paragraph",
+  unpublished: "Preview only · not published to Confluence",
+  activity: "Activity",
+  ask: "Ask agent to review",
+  askPrompt:
+    "Read this feature using get-feature. Compare the captured source evidence, cite source URLs and exact supporting text for any mismatch, distinguish facts from inferences, and identify the next question and owner. Do not assume a conflict exists. Report coverage limits. Do not invent a reply, approve a decision, send messages or publish anything.",
+  draftProposalPrompt:
+    "Read this feature using get-feature, then propose a specification paragraph based on the recorded reply using update-feature-question. Include the evidence in the rationale. Do not approve or publish.",
+  askProposal: "Ask agent to propose",
+  readonly: "You have read-only access.",
+  guide: "How to try this",
+  guideText:
+    "1. Inspect the source mismatch. 2. Save a reply from the product owner. 3. Propose the agreed policy. 4. Review and approve. 5. Inspect the preview and activity.",
+  revision: "Revision",
+  status: {
+    open: "Needs an answer",
+    answered: "Ready for a proposal",
+    proposed: "Awaiting approval",
+    approved: "Approved",
+  },
+};

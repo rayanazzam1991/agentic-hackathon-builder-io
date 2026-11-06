@@ -1,0 +1,16 @@
+#!/usr/bin/env node
+import { spawn } from "node:child_process";
+import { LocalCodex } from "../../shared/local-codex.ts";
+
+// Core 0.223 accepts reasoningEffort but does not forward it to Codex CLI.
+// Keep its native runner/transcripts; enforce the local policy at process launch.
+// guard:allow-env-credential — This value is an executable path selected by dev-local, never a credential.
+const executable = process.env.FEATURE_COORDINATOR_CODEX_EXECUTABLE;
+if (!executable) {
+  console.error("Start this app with pnpm dev:local to select the Codex executable.");
+  process.exit(1);
+}
+const child = spawn(executable, ["-c", `model_reasoning_effort="${LocalCodex.REASONING_EFFORT}"`, ...process.argv.slice(2)], { stdio: "inherit" });
+for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => child.kill(signal));
+child.on("error", () => {console.error("The selected Codex executable could not start.");process.exitCode=1;});
+child.on("exit", code => {process.exitCode=code??1;});

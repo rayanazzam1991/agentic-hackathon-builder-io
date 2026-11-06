@@ -1,0 +1,96 @@
+import { defineAction } from "@agent-native/core/action";
+import { getRequestOrgId } from "@agent-native/core/server/request-context";
+import {
+  FeatureParticipant,
+  FeatureWriteSchema,
+  QuestionStatus,
+} from "@shared/features/types";
+
+import { getDb, schema } from "../server/db";
+import { featureErrors } from "../server/features/errors";
+import { featureLink } from "../server/features/links";
+import { readLiveSources } from "../server/features/live-sources";
+import { featureWriteReceipt } from "../server/features/receipt";
+import {
+  LiveSourceInput,
+  parseSourceLinks,
+} from "../server/features/source-input";
+import { getFeature, requireActor } from "../server/features/store";
+
+export default defineAction({
+  description:
+    "Read a selected Jira story, published Confluence page and optionally a Figma node or selected Stitch screen through the caller's app connections; save a new private live-evidence review only if all selected sources succeed. Never sends or publishes. Reimport creates a separate snapshot review.",
+  schema: LiveSourceInput,
+  outputSchema: FeatureWriteSchema,
+  errors: featureErrors,
+  deferLoading: false,
+  link: featureLink,
+  run: async (input, context) => {
+    const actor = requireActor();
+    try {
+      parseSourceLinks(input);
+    } catch {
+      throw featureErrors.noWrite(
+        "Check the source links and selected design project/screen.",
+        "invalid_source",
+      );
+    }
+    let snapshot;
+    try {
+      snapshot = await readLiveSources(
+        input,
+        context ?? { caller: "frontend" },
+      );
+    } catch (error) {
+      // Provider bodies, tokens and internal errors must never reach chat or UI.
+      const safe =
+        error instanceof Error &&
+        /^(Connect exactly|The connected Atlassian|The Confluence reader|Jira could|Confluence could|Figma could|Stitch could|Jira,|Confluence,|Figma read failed|A source is|Confluence returned)/.test(
+          error.message,
+        )
+          ? error.message
+          : "Could not read all source evidence. Check app connections and source access; no review was created.";
+      throw featureErrors.noWrite(safe, "source_unavailable", {
+        statusCode: 503,
+      });
+    }
+    const id = crypto.randomUUID();
+    await getDb()
+      .insert(schema.features)
+      .values({
+        id,
+        title: `Live · ${snapshot.title}`,
+        status: QuestionStatus.OPEN,
+        ownerEmail: actor,
+        orgId: getRequestOrgId(),
+        data: {
+          sample: false,
+          sources: snapshot.sources,
+          question: {
+            text: "Review the captured sources for conflicting or missing business rules. Identify evidence and questions; do not assume a mismatch or a PO decision.",
+            owner: FeatureParticipant.PO,
+            reply: null,
+            replyBy: null,
+            proposal: null,
+            rationale: null,
+            approvedBy: null,
+            approvedAt: null,
+          },
+          activity: [
+            {
+              id: crypto.randomUUID(),
+              event: "Sources imported",
+              actor,
+              at: new Date().toISOString(),
+              detail:
+                "Read selected sources through the caller's connections. Saved captured text as a new review. No external content was changed.",
+            },
+          ],
+        },
+      });
+    return featureWriteReceipt(
+      await getFeature(id),
+      "Imported and verified selected live source snapshots. No messages sent or sources modified.",
+    );
+  },
+});

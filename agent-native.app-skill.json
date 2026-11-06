@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "feature-coordinator",
+  "displayName": "Feature Coordinator",
+  "description": "Local sample feature question review workflow.",
+  "hosted": {
+    "url": "http://127.0.0.1:8080",
+    "mcpUrl": "http://127.0.0.1:8080/mcp"
+  },
+  "mcp": { "serverName": "feature-coordinator-local" },
+  "local": {
+    "sourcePath": ".",
+    "defaultUrl": "http://127.0.0.1:8080",
+    "commands": { "dev": "pnpm dev:local" }
+  },
+  "surfaces": [],
+  "skills": [
+    { "path": ".agents/skills/feature-coordination", "visibility": "internal" }
+  ],
+  "hostAdapters": []
+}
