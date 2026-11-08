@@ -50,6 +50,7 @@ export function createLocalCodexRuntime() {
     capabilities: {
       messages: { streaming: true, history: true },
       tools: { events: true },
+      rich: { widgets: true },
       models: { selectable: true, reasoningEffort: false },
       cancellation: { abortSignal: true, explicitCancel: true },
     },

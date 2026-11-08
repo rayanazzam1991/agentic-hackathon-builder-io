@@ -12,4 +12,6 @@ export const featureErrors = defineActionErrors(
   "discord_delivery_pending",
   "invalid_suggestion",
   "suggestion_not_found",
+  "proposal_not_found",
+  "possible_duplicate",
 );

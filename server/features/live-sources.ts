@@ -190,7 +190,7 @@ export async function readLiveSources(
       ),
       excerpt: bound(figmaText(selection.document)),
       scope:
-        "Visible layer names and editable text in the selected node. Image pixels, comments and prototype interactions are not analysed.",
+        "Layer names and editable text in the selected node. Actual visibility, image pixels, comments and prototype interactions are not analysed.",
     });
   }
   return { title: String(fields.summary), sources };

@@ -1,6 +1,7 @@
 import type {
   AgentConnectionRequest,
   AgentMessage,
+  AgentWidget,
   AgentRunOptions,
   FilePart,
 } from "@agent-native/agentkit";
@@ -36,7 +37,10 @@ import {
   McpAgentKitConnectionRequestCard,
   McpAgentKitConnectionResume,
 } from "@agent-native/toolkit/app/chat/agentkit-chat/connections";
-import { CoreAgentKitRoot } from "@agent-native/toolkit/app/chat/agentkit-chat/index";
+import {
+  AgentKitActionWidget,
+  CoreAgentKitRoot,
+} from "@agent-native/toolkit/app/chat/agentkit-chat/index";
 import {
   GuidedQuestionFlow,
   useGuidedQuestionFlow,
@@ -46,6 +50,10 @@ import {
   findMcpConnectionSuggestionIntegration,
   McpConnectionSuggestion,
 } from "@agent-native/toolkit/app/chat/agentkit-chat/suggestions";
+import {
+  resolveToolRenderer,
+  type ToolRendererContext,
+} from "@agent-native/toolkit/app/chat/chat";
 import {
   BuilderSetupCard,
   IMPLEMENT_PLAN_PROMPT,
@@ -367,6 +375,7 @@ function ChatThreadRouteContent({
               runFailure: ChatRunFailure,
               connectionRequest: ChatMcpConnectionRequest,
               footer: ChatAgentFooter,
+              widget: ChatWidget,
             }}
             onThreadForked={(thread) => navigate(chatThreadPath(thread.id))}
           >
@@ -425,6 +434,27 @@ function ChatContextRing({ threadId }: { threadId: string }) {
     threadHasFinishedReply(thread.messages),
   );
   return <ThreadContextRing threadId={threadId} enabled={enabled} />;
+}
+
+// The toolkit's default widget slot resolves renderers from its own registry
+// copy, so the app resolves its registered renderers here before delegating.
+function ChatWidget(props: AgentKitRenderProps<AgentWidget>) {
+  const thread = useAgentThread(props.threadId);
+  const data = props.value.data as { toolCallId?: string } | undefined;
+  const tool = data?.toolCallId ? thread.tools[data.toolCallId] : undefined;
+  if (!tool) return <AgentKitActionWidget {...props} />;
+  const context = {
+    toolName: tool.name,
+    args: (tool.input as Record<string, unknown>) ?? {},
+    resultJson: tool.output,
+    widgetId: props.value.id,
+    status: tool.status,
+    isRunning: tool.status === "running",
+    chatUI: { renderer: props.value.kind },
+  } as ToolRendererContext;
+  const Renderer = resolveToolRenderer(context);
+  if (!Renderer) return <AgentKitActionWidget {...props} />;
+  return <Renderer context={context} />;
 }
 
 function ChatMessage({ value, threadId }: AgentKitRenderProps<AgentMessage>) {

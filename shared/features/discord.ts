@@ -13,6 +13,7 @@ export const DiscordChange = {
   DRAFT: "draft",
   RECORD: "record",
   ROLES: "roles",
+  QUESTION_DRAFT: "question_draft",
 } as const;
 export type DiscordChange = (typeof DiscordChange)[keyof typeof DiscordChange];
 export const DiscordSnowflake = z.string().regex(/^\d{17,20}$/);
@@ -31,6 +32,47 @@ export const DiscordRoleSchema = z.object({
   mentionPermission: z.enum(DiscordMentionPermission).optional(),
 });
 export type DiscordRole = z.infer<typeof DiscordRoleSchema>;
+export const DiscordPersonVisibility = {
+  VISIBLE: "visible",
+  HIDDEN: "hidden",
+  UNKNOWN: "unknown",
+} as const;
+export type DiscordPersonVisibility =
+  (typeof DiscordPersonVisibility)[keyof typeof DiscordPersonVisibility];
+// Display-only association: roles never grant approval authority.
+export const DiscordPersonSchema = z.object({
+  id: DiscordSnowflake,
+  username: z.string().min(1).max(100),
+  displayName: z.string().min(1).max(100),
+  roles: z
+    .array(z.object({ id: DiscordSnowflake, name: z.string().max(100) }))
+    .max(50),
+});
+export type DiscordPerson = z.infer<typeof DiscordPersonSchema>;
+export const DiscordDirectoryPersonSchema = DiscordPersonSchema.extend({
+  visibility: z.enum(DiscordPersonVisibility),
+});
+export type DiscordDirectoryPerson = z.infer<
+  typeof DiscordDirectoryPersonSchema
+>;
+export const DiscordMemberCoverage = {
+  COMPLETE: "complete",
+  PARTIAL: "partial",
+  UNAVAILABLE: "unavailable",
+} as const;
+export const DiscordDirectorySchema = z.object({
+  people: z.array(DiscordDirectoryPersonSchema).max(2000),
+  roles: z.array(DiscordRoleSchema).max(1000),
+  coverage: z.object({
+    members: z.enum(DiscordMemberCoverage),
+    listed: z.number().int(),
+    visible: z.number().int(),
+    hidden: z.number().int(),
+    unknown: z.number().int(),
+    limitations: z.array(z.string().max(400)).max(10),
+  }),
+});
+export type DiscordDirectory = z.infer<typeof DiscordDirectorySchema>;
 export const DiscordRoleMappingsSchema = z.partialRecord(
   z.enum(FeatureParticipant),
   DiscordRoleSchema,
@@ -46,6 +88,9 @@ export const DiscordReplySchema = z.object({
 });
 export const DiscordDeliverySchema = z.object({
   recipientRole: DiscordRoleSchema.optional(),
+  recipientPerson: DiscordPersonSchema.optional(),
+  // Channel the reviewed draft was snapshotted for; per-question drafts only.
+  channelId: DiscordSnowflake.optional(),
   questionText: z.string().max(1600).optional(),
   status: z.enum(DiscordDeliveryStatus),
   nonce: z.string(),
@@ -81,6 +126,10 @@ export const DiscordChangeSchema = z.discriminatedUnion("event", [
   z.object({
     event: z.literal(DiscordChange.DRAFT),
     text: z.string().trim().min(1).max(1600),
+  }),
+  z.object({
+    event: z.literal(DiscordChange.QUESTION_DRAFT),
+    questionId: z.string().min(1).max(100),
   }),
   z.object({
     event: z.literal(DiscordChange.RECORD),

@@ -1,6 +1,8 @@
 import { DesignProvider } from "@shared/features/types";
 import { z } from "zod";
 
+export class SourceLinkError extends Error {}
+
 export const LiveSourceInput = z.object({
   designProvider: z
     .enum(DesignProvider)
@@ -50,6 +52,8 @@ export function parseSourceLinks(input: z.infer<typeof LiveSourceInput>) {
   const jira = new URL(input.jiraUrl);
   const confluence = new URL(input.confluenceUrl);
   const designProvider = getDesignProvider(input);
+  if (designProvider === DesignProvider.FIGMA && !input.figmaUrl)
+    throw new SourceLinkError("Enter a Figma Design URL with a node selection.");
   const figma =
     designProvider === DesignProvider.FIGMA
       ? new URL(input.figmaUrl ?? "")
@@ -58,10 +62,10 @@ export function parseSourceLinks(input: z.infer<typeof LiveSourceInput>) {
     designProvider === DesignProvider.STITCH &&
     (!input.stitchProjectId || !input.stitchScreenId)
   )
-    throw new Error("Select a Stitch project and screen.");
+    throw new SourceLinkError("Select a Stitch project and screen.");
   for (const url of [jira, confluence, ...(figma ? [figma] : [])]) {
     if (url.protocol !== "https:" || url.username || url.password || url.port)
-      throw new Error(
+      throw new SourceLinkError(
         "Use HTTPS source links without credentials or custom ports.",
       );
   }
@@ -69,7 +73,7 @@ export function parseSourceLinks(input: z.infer<typeof LiveSourceInput>) {
     !/^[a-z0-9-]+\.atlassian\.net$/.test(jira.hostname) ||
     confluence.origin !== jira.origin
   )
-    throw new Error(
+    throw new SourceLinkError(
       "Jira and Confluence must belong to the same Atlassian Cloud site.",
     );
   const key = /^\/browse\/([A-Z][A-Z0-9_]*-\d+)\/?$/.exec(jira.pathname)?.[1];
@@ -79,14 +83,16 @@ export function parseSourceLinks(input: z.infer<typeof LiveSourceInput>) {
   const tiny = /^\/wiki\/x\/([A-Za-z0-9_-]+)\/?$/.exec(
     confluence.pathname,
   )?.[1];
-  if (!key || (!pageId && !tiny))
-    throw new Error(
-      "Use a Jira browse link and a Confluence page or tiny link.",
+  if (!key)
+    throw new SourceLinkError(
+      "Enter a Jira issue URL in the Jira story field, for example https://your-site.atlassian.net/browse/PROJ-123. A Confluence page URL cannot be used there.",
     );
+  if (!pageId && !tiny)
+    throw new SourceLinkError("Enter a Confluence page or tiny link in the Confluence page field.");
   // Confluence tiny links are URL-safe base64 of a little-endian content ID.
   const bytes = tiny ? Buffer.from(tiny, "base64url") : undefined;
   if (bytes && (bytes.length < 1 || bytes.length > 6))
-    throw new Error("Invalid Confluence tiny link.");
+    throw new SourceLinkError("Enter a valid Confluence tiny link.");
   const id = pageId ?? String(bytes!.readUIntLE(0, bytes!.length));
   const fileKey = /^\/design\/([A-Za-z0-9]+)\//.exec(
     figma?.pathname ?? "",
@@ -99,7 +105,7 @@ export function parseSourceLinks(input: z.infer<typeof LiveSourceInput>) {
       !nodeId ||
       !/^\d+:\d+$/.test(nodeId))
   )
-    throw new Error("Use a Figma Design link with a numeric node-id.");
+    throw new SourceLinkError("Use a Figma Design link with a numeric node-id.");
   return {
     site: jira.origin,
     key,

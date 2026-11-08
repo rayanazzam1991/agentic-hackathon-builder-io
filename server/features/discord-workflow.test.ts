@@ -14,6 +14,13 @@ const mock = vi.hoisted(() => ({
   verify: vi.fn(),
   reply: vi.fn(),
   roles: vi.fn(),
+  setup: vi.fn(),
+  setupRoles: vi.fn(),
+}));
+vi.mock("./discord-settings", () => ({
+  readDiscordSetup: () => mock.setup(),
+  readSetupRoles: () => mock.setupRoles(),
+  setupToBinding: (setup: Record<string, unknown>) => ({ ...setup, delivery: null, replies: [], checkedAt: null, partial: false }),
 }));
 vi.mock("@agent-native/core/sharing", () => ({
   assertAccess: (...args: unknown[]) => mock.access(...args),
@@ -50,6 +57,7 @@ vi.mock("../db", async () => ({
 import sendAction from "../../actions/send-feature-discord-question";
 import {
   checkDiscordReplies,
+  applyDiscordSetup,
   sendDiscordQuestion,
   updateDiscord,
 } from "./discord-workflow";
@@ -120,6 +128,22 @@ beforeEach(() => {
   mock.api.mockImplementation(async (_path, body) => message());
 });
 describe("Discord delivery and reply boundaries", () => {
+  it("never overwrites an existing Discord channel or history with defaults", async () => {
+    const before = structuredClone(feature());
+    await expect(applyDiscordSetup("feature-test", 1)).rejects.toThrow("already has a Discord channel");
+    expect(feature()).toEqual(before);
+    expect(mock.setup).not.toHaveBeenCalled();
+  });
+  it("applies verified defaults only to an owned feature without a channel", async () => {
+    delete feature().data.discord;
+    mock.setup.mockResolvedValue({ guildId: guild, channelId: channel, channelName: "feature-review", botId: bot, roleMappings: {} });
+    mock.setupRoles.mockResolvedValue([]);
+    const result = await applyDiscordSetup("feature-test", 1);
+    expect(mock.access).toHaveBeenCalledWith("coordination-feature", "feature-test", "owner");
+    expect(result.data.discord?.channelId).toBe(channel);
+    expect(result.data.discord?.delivery).toBeNull();
+    expect(mock.api).not.toHaveBeenCalled();
+  });
   it("blocks agent/tool posting before any provider request", async () => {
     await expect(
       sendAction.run({ id: "feature-test", revision: 1 }, { caller: "tool" }),

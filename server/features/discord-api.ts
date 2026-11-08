@@ -7,7 +7,14 @@ import {
 } from "@shared/features/discord";
 import { z } from "zod";
 
-export class DiscordApiError extends Error {}
+export class DiscordApiError extends Error {
+  constructor(
+    message: string,
+    readonly status?: number,
+  ) {
+    super(message);
+  }
+}
 export const DISCORD_BOT_SECRET = "FEATURE_COORDINATOR_DISCORD_BOT_TOKEN";
 const origin = "https://discord.com";
 export const DiscordMessage = z.object({
@@ -46,7 +53,7 @@ export async function discordApi() {
   return async (path: string, body?: unknown) => {
     // Paths are constructed only by this adapter's validated-ID callers.
     if (
-      !/^\/(?:users\/@me|guilds\/\d{17,20}\/(?:roles|members\/\d{17,20})|channels\/\d{17,20}(?:\/messages(?:\/\d{17,20})?)?)(?:\?limit=100)?$/.test(
+      !/^\/(?:users\/@me|guilds\/\d{17,20}(?:\/(?:roles|members\/\d{17,20}))?|guilds\/\d{17,20}\/members\?limit=500(?:&after=\d{17,20})?|channels\/\d{17,20}(?:\/messages(?:\/\d{17,20})?)?)(?:\?limit=100)?$/.test(
         path,
       )
     )
@@ -80,12 +87,16 @@ export async function discordApi() {
       if (response.status === 403 || response.status === 404)
         throw new DiscordApiError(
           "The bot cannot access this channel. Check the server installation and channel permissions.",
+          response.status,
         );
       if (response.status === 429)
         throw new DiscordApiError(
           "Discord is rate limited. Retry later; do not repeat a pending send.",
         );
-      throw new DiscordApiError("Discord could not complete the request.");
+      throw new DiscordApiError(
+        "Discord could not complete the request.",
+        response.status,
+      );
     }
     if (!response.body)
       throw new DiscordApiError("Discord returned an empty response.");
@@ -211,7 +222,7 @@ export async function listDiscordRoles(
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-const Permission = {
+export const Permission = {
   ADMINISTRATOR: 1n << 3n,
   VIEW_CHANNEL: 1n << 10n,
   SEND_MESSAGES: 1n << 11n,

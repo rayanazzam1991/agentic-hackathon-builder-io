@@ -1,5 +1,6 @@
 import { getOrgContext } from "@agent-native/core/org";
 import { REASONING_EFFORTS } from "@agent-native/core/shared";
+import { QuestionApprovalChat } from "@shared/features/types";
 import { LocalCodex } from "@shared/local-codex";
 import { createError, defineEventHandler, readBody } from "h3";
 import { z } from "zod";
@@ -39,13 +40,51 @@ export default defineEventHandler(async (event) => {
         controller.enqueue(
           encoder.encode(`data: ${JSON.stringify(value)}\n\n`),
         );
+      // The card shows persisted questions; its controls run as the signed-in
+      // user in the browser, never through this agent run.
+      const onTool = (value: unknown) => {
+        const done = value as {
+          type?: string;
+          toolName?: string;
+          toolCallId?: string;
+          status?: string;
+        };
+        const card =
+          done.type === "tool-done" &&
+          done.toolName === QuestionApprovalChat.ACTION &&
+          done.status === "completed" &&
+          !!done.toolCallId;
+        send(
+          card
+            ? {
+                ...done,
+                chatUI: {
+                  renderer: QuestionApprovalChat.RENDERER,
+                  title: "Questions",
+                },
+              }
+            : value,
+        );
+        if (card)
+          send({
+            type: "widget",
+            operation: "create",
+            widget: {
+              id: `${done.toolCallId}:chat-ui`,
+              kind: QuestionApprovalChat.RENDERER,
+              title: "Questions",
+              state: "ready",
+              data: { toolCallId: done.toolCallId, toolName: done.toolName },
+            },
+          });
+      };
       try {
         send({
           type: "status",
           message: "Running Codex CLI with your local login.",
         });
         const text = await runFeatureAgent({
-          onTool: send,
+          onTool,
           ...(body.reasoningEffort
             ? { reasoningEffort: body.reasoningEffort }
             : {}),

@@ -13,6 +13,7 @@ import {
 import { OrgSwitcher } from "@agent-native/toolkit/app/org";
 import { openCommandMenu } from "@agent-native/toolkit/app/shared";
 import { AgentNativeIcon } from "@agent-native/toolkit/app/shared/AgentNativeIcon";
+import { FeatureResource } from "@shared/features/types";
 import {
   IconEdit,
   IconHome,
@@ -20,6 +21,7 @@ import {
   IconLayoutSidebarLeftExpand,
   IconLoader2,
   IconSearch,
+  IconSettings,
 } from "@tabler/icons-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
@@ -153,6 +155,30 @@ function HomeNavLink({ collapsed }: { collapsed: boolean }) {
   return <div className="px-2">{link}</div>;
 }
 
+function SettingsNavLink({ collapsed }: { collapsed: boolean }) {
+  const t = useT();
+  const { pathname } = useLocation();
+  const label = t("settings.title");
+  const link = (
+    <Link
+      to="/settings"
+      aria-current={pathname.startsWith("/settings") ? "page" : undefined}
+      aria-label={collapsed ? label : undefined}
+      className={cn(
+        "flex items-center text-sidebar-accent-foreground transition-colors hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring",
+        pathname.startsWith("/settings") && "bg-sidebar-accent",
+        collapsed ? "size-8 justify-center rounded-md" : "h-8 w-full gap-3 rounded-lg px-3 text-sm font-medium",
+      )}
+    >
+      <IconSettings className="size-4 shrink-0" strokeWidth={1.8} />
+      <span className={collapsed ? "sr-only" : "truncate"}>{label}</span>
+    </Link>
+  );
+  return collapsed ? (
+    <Tooltip><TooltipTrigger asChild>{link}</TooltipTrigger><TooltipContent side="right">{label}</TooltipContent></Tooltip>
+  ) : <div className="px-2">{link}</div>;
+}
+
 function ChatThreadsSection({ collapsed }: { collapsed: boolean }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -196,9 +222,13 @@ function ChatThreadsSection({ collapsed }: { collapsed: boolean }) {
       if (kind === "rename") toast.error(t("chat.renameFailed"));
     },
     decorateItem: (item, row) => {
-      const title = row.title || row.preview || t("chat.untitledChat");
+      const originalTitle = row.title || row.preview || t("chat.untitledChat");
+      const title = originalTitle.startsWith("Read this feature using get-feature")
+        ? t("coordinator.previousReview")
+        : originalTitle;
       return {
         ...item,
+        titleText: title,
         title: (
           <ThreadHistoryTitle
             title={title}
@@ -310,6 +340,8 @@ export function Sidebar({
   onCollapsedChange,
 }: SidebarProps) {
   const t = useT();
+  const { pathname } = useLocation();
+  const isFeaturePage = pathname === FeatureResource.PATH || pathname.startsWith(`${FeatureResource.PATH}/`);
   const ToggleIcon = collapsed
     ? IconLayoutSidebarLeftExpand
     : IconLayoutSidebarLeftCollapse;
@@ -408,7 +440,10 @@ export function Sidebar({
         )}
       >
         <HomeNavLink collapsed={collapsed} />
-        <ChatThreadsSection collapsed={collapsed} />
+        <SettingsNavLink collapsed={collapsed} />
+        <div className={cn("min-h-0 flex-1 flex-col", isFeaturePage ? "hidden" : "flex")}>
+          <ChatThreadsSection collapsed={collapsed} />
+        </div>
       </nav>
 
       <div className="mt-auto shrink-0 border-t border-sidebar-border p-2">

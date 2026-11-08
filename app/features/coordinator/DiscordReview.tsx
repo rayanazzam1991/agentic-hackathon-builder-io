@@ -32,6 +32,7 @@ export function DiscordReview({
   const update = useActionMutation("update-feature-discord");
   const send = useActionMutation("send-feature-discord-question");
   const check = useActionMutation("check-feature-discord-replies");
+  const apply = useActionMutation("apply-discord-setup");
   const [error, setError] = useState<string>();
   const [confirm, setConfirm] = useState(false);
   const binding = feature.data.discord;
@@ -43,7 +44,7 @@ export function DiscordReview({
           "")
       : "",
   );
-  const pending = update.isPending || send.isPending || check.isPending;
+  const pending = update.isPending || send.isPending || check.isPending || apply.isPending;
   const draftable =
     feature.canApprove &&
     feature.status === QuestionStatus.OPEN &&
@@ -78,6 +79,10 @@ export function DiscordReview({
       )}
       {!binding ? (
         <>
+          <div className="flex flex-wrap gap-3">
+            {feature.canApprove && <Button variant="outline" disabled={pending} onClick={() => void run(() => apply.mutateAsync({ id: feature.id, revision: feature.revision }))}>{t("coordinator.discordSettings.apply")}</Button>}
+            <a className="self-center text-sm underline" href="/settings/app/discord">{t("coordinator.discordSettings.link")}</a>
+          </div>
           <p className="text-sm text-muted-foreground">
             {t("coordinator.discord.setup")}{" "}
             <a className="underline" href="/settings/api-keys">

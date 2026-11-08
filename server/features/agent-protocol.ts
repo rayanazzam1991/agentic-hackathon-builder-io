@@ -1,3 +1,9 @@
+import {
+  QuestionApprovalChat,
+  FeatureProgressChangeSchema,
+  SuggestedQuestionBatchSchema,
+  SuggestedQuestionUpdateSchema,
+} from "@shared/features/types";
 import { z } from "zod";
 
 export const FeatureAgentAction = {
@@ -5,8 +11,10 @@ export const FeatureAgentAction = {
   LIST: "list-features",
   GET: "get-feature",
   UPDATE: "update-feature-question",
-  SUGGEST: "create-feature-suggested-questions",
+  UPDATE_PROGRESS: "update-feature-progress",
+  SUGGEST: "propose-feature-questions",
   UPDATE_SUGGESTION: "update-feature-suggested-question",
+  SHOW_QUESTIONS: QuestionApprovalChat.ACTION,
 } as const;
 export type FeatureAgentAction =
   (typeof FeatureAgentAction)[keyof typeof FeatureAgentAction];
@@ -39,7 +47,28 @@ export const FeatureAgentToolStatus = {
 export type FeatureAgentToolStatus =
   (typeof FeatureAgentToolStatus)[keyof typeof FeatureAgentToolStatus];
 
+// Actions the agent may call with arguments that need strict, defaulted
+// validation before they reach the domain layer.
+const ArgsSchemas: Partial<Record<FeatureAgentAction, z.ZodType>> = {
+  [FeatureAgentAction.UPDATE_PROGRESS]: FeatureProgressChangeSchema,
+  [FeatureAgentAction.SUGGEST]: SuggestedQuestionBatchSchema,
+  [FeatureAgentAction.UPDATE_SUGGESTION]: SuggestedQuestionUpdateSchema,
+};
+
 export function parseFeatureAgentResponse(text: string) {
+  const reply = parseRawResponse(text);
+  if (reply.type === FeatureAgentReply.ACTION) {
+    const schema = ArgsSchemas[reply.name];
+    if (schema)
+      return {
+        ...reply,
+        args: schema.parse(reply.args) as Record<string, unknown>,
+      };
+  }
+  return reply;
+}
+
+function parseRawResponse(text: string) {
   return ResponseSchema.parse(
     JSON.parse(
       text

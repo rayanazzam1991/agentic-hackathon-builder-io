@@ -7,6 +7,7 @@ import {
 } from "@agent-native/toolkit/app/settings";
 
 import { APP_TITLE } from "@/lib/app-config";
+import { DiscordSettings } from "@/features/coordinator/DiscordSettings";
 
 import changelog from "../../CHANGELOG.md?raw";
 
@@ -24,6 +25,7 @@ export default function SettingsRoute() {
     <SettingsTabsPage
       account={<AccountSettingsCard />}
       extraTabs={agentSettingsTabs}
+      appAreas={[{ id: "discord", label: "Discord", content: <DiscordSettings /> }]}
       whatsNewMarkdown={changelog}
     />
   );

@@ -22,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { DiscordDirectory } from "@/features/coordinator/DiscordDirectory";
 
 type Selections = Partial<Record<FeatureParticipant, string>>;
 export function DiscordPeopleRoles({
@@ -208,6 +209,14 @@ export function DiscordPeopleRoles({
         <p role="status" className="text-sm">
           {t("coordinator.discord.rolesSaved")}
         </p>
+      )}
+      {feature.canApprove && (
+        <div className="space-y-2 border-t border-border pt-4">
+          <h4 className="text-sm font-semibold">
+            {t("coordinator.directory.title")}
+          </h4>
+          <DiscordDirectory feature={feature} disabled={disabled} />
+        </div>
       )}
     </section>
   );

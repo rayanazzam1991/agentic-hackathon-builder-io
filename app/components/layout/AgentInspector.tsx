@@ -3,7 +3,8 @@ import { useT } from "@agent-native/core/client/i18n";
 import { focusAgentChat } from "@agent-native/toolkit/app/chat";
 import { AgentSidebar } from "@agent-native/toolkit/app/chat";
 import { type ReactNode, useState } from "react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
+import { FeatureResource } from "@shared/features/types";
 
 import {
   createLocalCodexRuntime,
@@ -26,6 +27,8 @@ export function AgentInspector({
   chatHomeHandoffPending,
 }: AgentInspectorProps) {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const featureId = /^\/features\/([^/]+)\/?$/.exec(pathname)?.[1];
   const t = useT();
   const [runtime] = useState(() =>
     LOCAL_CODEX_ENABLED ? createLocalCodexRuntime() : undefined,
@@ -50,6 +53,8 @@ export function AgentInspector({
       chatViewTransition
       chatViewTransitionHandoff={chatHomeHandoffPending}
       storageKey="chat"
+      scope={featureId ? { type: FeatureResource.TYPE, id: featureId } : null}
+      isolateHistoryByScope={!!featureId}
       browserTabId={TAB_ID}
       openOnChatRunning={chatHomeHandoffActive}
       onFullscreenRequest={openAskAgentFullscreen}

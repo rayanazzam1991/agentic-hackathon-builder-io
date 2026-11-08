@@ -1,5 +1,7 @@
 import {
   FeatureParticipant,
+  FeatureProgress,
+  FeatureProgressEvent,
   QuestionEvent,
   QuestionStatus,
   type FeatureData,
@@ -49,8 +51,8 @@ vi.mock("../db", async () => ({
   }),
 }));
 import approve from "../../actions/approve-feature-decision";
-import { questionMachine } from "./lifecycle";
-import { changeQuestion, getFeature } from "./store";
+import { featureProgressMachine, questionMachine } from "./lifecycle";
+import { changeFeatureProgress, changeQuestion, getFeature } from "./store";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -67,6 +69,37 @@ beforeEach(() => {
     visibility: "private",
     data: createSampleData(state.actor),
   };
+});
+describe("feature progress", () => {
+  it("defaults legacy reads without inferring progress from a question", async () => {
+    (state.row as { status: string }).status = QuestionStatus.APPROVED;
+    expect((await getFeature("sample")).featureStatus).toBe(FeatureProgress.NOT_STARTED);
+  });
+  it("pins the permitted lifecycle transitions", () => {
+    expect(featureProgressMachine.transition(FeatureProgress.NOT_STARTED, FeatureProgressEvent.START)).toBe(FeatureProgress.IN_PROGRESS);
+    expect(featureProgressMachine.transition(FeatureProgress.IN_PROGRESS, FeatureProgressEvent.COMPLETE)).toBe(FeatureProgress.DONE);
+    expect(featureProgressMachine.transition(FeatureProgress.DONE, FeatureProgressEvent.REOPEN)).toBe(FeatureProgress.IN_PROGRESS);
+    expect(featureProgressMachine.transition(FeatureProgress.IN_PROGRESS, FeatureProgressEvent.RESET)).toBe(FeatureProgress.NOT_STARTED);
+    expect(featureProgressMachine.can(FeatureProgress.NOT_STARTED, FeatureProgressEvent.COMPLETE)).toBe(false);
+    expect(featureProgressMachine.can(FeatureProgress.DONE, FeatureProgressEvent.RESET)).toBe(false);
+  });
+  it("updates only progress and revision, retaining questions and delivery data", async () => {
+    const before = structuredClone(state.row);
+    const saved = await changeFeatureProgress("sample", 1, FeatureProgressEvent.START);
+    expect(saved.featureStatus).toBe(FeatureProgress.IN_PROGRESS);
+    expect(saved.status).toBe((before as { status: string }).status);
+    expect(saved.data).toEqual((before as { data: unknown }).data);
+    expect(saved.revision).toBe(2);
+    expect(state.access).toHaveBeenCalledWith("coordination-feature", "sample", "editor");
+  });
+  it("rejects forbidden, stale, illegal and raced updates", async () => {
+    state.access.mockRejectedValueOnce(new Error("Forbidden"));
+    await expect(changeFeatureProgress("sample", 1, FeatureProgressEvent.START)).rejects.toThrow("Forbidden");
+    await expect(changeFeatureProgress("sample", 2, FeatureProgressEvent.START)).rejects.toThrow("changed");
+    await expect(changeFeatureProgress("sample", 1, FeatureProgressEvent.COMPLETE)).rejects.toThrow("not available");
+    state.loseRace = true;
+    await expect(changeFeatureProgress("sample", 1, FeatureProgressEvent.START)).rejects.toThrow("race");
+  });
 });
 describe("question review boundaries", () => {
   it("requires authentication before reading a feature", async () => {

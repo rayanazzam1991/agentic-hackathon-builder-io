@@ -2,17 +2,19 @@ import { getRequestUserEmail } from "@agent-native/core/server/request-context";
 import { assertAccess } from "@agent-native/core/sharing";
 import {
   FeatureDataSchema,
+  FeatureProgress,
   FeatureResource,
   FeatureSchema,
   QuestionEvent,
   type FeatureData,
+  type FeatureProgressEvent,
   type QuestionChange,
 } from "@shared/features/types";
 import { and, eq, inArray } from "drizzle-orm";
 
 import { getDb, schema } from "../db";
 import { featureErrors } from "./errors";
-import { questionMachine } from "./lifecycle";
+import { featureProgressMachine, questionMachine } from "./lifecycle";
 
 export function requireActor() {
   const actor = getRequestUserEmail();
@@ -38,6 +40,7 @@ export async function getFeature(id: string) {
   return FeatureSchema.parse({
     ...row,
     status: questionMachine.parseState(row.status),
+    featureStatus: featureProgressMachine.parseState(row.featureStatus ?? FeatureProgress.NOT_STARTED),
     data: FeatureDataSchema.parse(row.data),
     canEdit:
       access.role === "owner" ||
@@ -45,6 +48,27 @@ export async function getFeature(id: string) {
       access.role === "editor",
     canApprove: access.role === "owner",
   });
+}
+
+export async function changeFeatureProgress(id: string, revision: number, event: FeatureProgressEvent) {
+  requireActor();
+  await assertAccess(FeatureResource.TYPE, id, "editor");
+  const current = await getFeature(id);
+  if (current.revision !== revision)
+    throw featureErrors.noWrite("This feature changed. Review the latest version before saving.", "stale_revision", { statusCode: 409 });
+  if (!featureProgressMachine.can(current.featureStatus, event))
+    throw featureErrors.noWrite("This step is not available in the current state.", "invalid_transition", { statusCode: 409 });
+  const [saved] = await getDb().update(schema.features).set({
+    featureStatus: featureProgressMachine.transition(current.featureStatus, event),
+    revision: revision + 1,
+  }).where(and(
+    eq(schema.features.id, id),
+    eq(schema.features.revision, revision),
+    inArray(schema.features.featureStatus, [...featureProgressMachine.fromStates(event)]),
+  )).returning({ id: schema.features.id });
+  if (!saved)
+    throw featureErrors.noWrite("Another edit won the race. Refresh and review before retrying.", "stale_revision", { statusCode: 409 });
+  return getFeature(id);
 }
 
 export async function changeQuestion(

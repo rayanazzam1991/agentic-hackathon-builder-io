@@ -21,7 +21,7 @@ export function SourceEvidence({ feature }: { feature: Feature }) {
             {t("coordinator.figmaExcluded")}
           </p>
         )}
-      <div className="grid gap-3 xl:grid-cols-3">
+      <div className="grid items-start gap-3 xl:grid-cols-3">
         {feature.data.sources.map((source) => (
           <Card key={source.kind} className="gap-3 py-4 shadow-none">
             <CardHeader className="gap-1 px-4">
@@ -46,15 +46,20 @@ export function SourceEvidence({ feature }: { feature: Feature }) {
                 </p>
               )}
             </CardHeader>
-            <CardContent className="px-4 text-sm leading-6">
-              <blockquote className="max-h-80 overflow-auto whitespace-pre-wrap break-words border-s-2 border-primary/40 ps-3">
-                {source.excerpt}
-              </blockquote>
+            <CardContent className="min-w-0 px-4 text-sm leading-6">
               {source.scope && (
-                <p className="mt-3 text-xs text-muted-foreground">
+                <p className="mb-3 text-xs text-muted-foreground">
                   {source.scope}
                 </p>
               )}
+              <details>
+                <summary className="cursor-pointer font-medium underline underline-offset-4">
+                  {t("coordinator.viewCapturedText")}
+                </summary>
+                <blockquote className="mt-3 whitespace-pre-wrap break-words border-s-2 border-primary/40 ps-3">
+                  {source.excerpt}
+                </blockquote>
+              </details>
             </CardContent>
           </Card>
         ))}

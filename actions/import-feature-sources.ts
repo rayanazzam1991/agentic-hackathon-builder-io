@@ -1,5 +1,6 @@
 import { defineAction } from "@agent-native/core/action";
 import { getRequestOrgId } from "@agent-native/core/server/request-context";
+import { ReviewInstruction } from "@shared/features/questions";
 import {
   FeatureParticipant,
   FeatureWriteSchema,
@@ -11,9 +12,11 @@ import { featureErrors } from "../server/features/errors";
 import { featureLink } from "../server/features/links";
 import { readLiveSources } from "../server/features/live-sources";
 import { featureWriteReceipt } from "../server/features/receipt";
+import { readDiscordSetup, setupToBinding } from "../server/features/discord-settings";
 import {
   LiveSourceInput,
   parseSourceLinks,
+  SourceLinkError,
 } from "../server/features/source-input";
 import { getFeature, requireActor } from "../server/features/store";
 
@@ -29,9 +32,9 @@ export default defineAction({
     const actor = requireActor();
     try {
       parseSourceLinks(input);
-    } catch {
+    } catch (error) {
       throw featureErrors.noWrite(
-        "Check the source links and selected design project/screen.",
+        error instanceof SourceLinkError ? error.message : "Check the source links and selected design project/screen.",
         "invalid_source",
       );
     }
@@ -55,6 +58,7 @@ export default defineAction({
       });
     }
     const id = crypto.randomUUID();
+    const discordSetup = await readDiscordSetup();
     await getDb()
       .insert(schema.features)
       .values({
@@ -65,9 +69,10 @@ export default defineAction({
         orgId: getRequestOrgId(),
         data: {
           sample: false,
+          ...(discordSetup ? { discord: setupToBinding(discordSetup) } : {}),
           sources: snapshot.sources,
           question: {
-            text: "Review the captured sources for conflicting or missing business rules. Identify evidence and questions; do not assume a mismatch or a PO decision.",
+            text: ReviewInstruction,
             owner: FeatureParticipant.PO,
             reply: null,
             replyBy: null,

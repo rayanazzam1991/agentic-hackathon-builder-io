@@ -1,10 +1,8 @@
 import { defineAction } from "@agent-native/core/action";
 import {
   FeatureWriteSchema,
-  RevisionInput,
-  SuggestedQuestionChangeSchema,
+  SuggestedQuestionUpdateSchema,
 } from "@shared/features/types";
-import { z } from "zod";
 
 import { featureErrors } from "../server/features/errors";
 import { featureLink } from "../server/features/links";
@@ -13,14 +11,7 @@ import { changeSuggestedQuestion } from "../server/features/suggested-questions"
 export default defineAction({
   description:
     "Edit, dismiss or restore one suggested question by questionId (not the primary question). Edit can change text, suggested role, cited evidence and recipient role; dismissed suggestions are restorable. Never approves or sends. Requires the current revision.",
-  schema: RevisionInput.extend({
-    questionId: z
-      .string()
-      .min(1)
-      .max(100)
-      .describe("Suggested question id from get-feature data.questions."),
-    change: SuggestedQuestionChangeSchema,
-  }),
+  schema: SuggestedQuestionUpdateSchema,
   outputSchema: FeatureWriteSchema,
   link: featureLink,
   errors: featureErrors,

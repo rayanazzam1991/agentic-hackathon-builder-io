@@ -19,7 +19,13 @@ import {
 } from "@/components/ui/select";
 import { StitchDesignPicker } from "@/features/coordinator/StitchDesignPicker";
 
-export function LiveSourceImport() {
+export function LiveSourceImport({
+  onBusyChange,
+  onCancel,
+}: {
+  onBusyChange: (busy: boolean) => void;
+  onCancel: () => void;
+}) {
   const t = useT();
   const navigate = useNavigate();
   const importer = useActionMutation("import-feature-sources");
@@ -30,19 +36,14 @@ export function LiveSourceImport() {
   const [screenId, setScreenId] = useState("");
   const [error, setError] = useState<string>();
   return (
-    <details className="rounded-xl border border-border p-5" open>
-      <summary className="cursor-pointer font-semibold">
-        {t("coordinator.importTitle")}
-      </summary>
-      <p className="my-3 text-sm text-muted-foreground">
-        {t("coordinator.importHelp")}
-      </p>
+    <div>
       <form
         className="space-y-4"
         onSubmit={async (event) => {
           event.preventDefault();
           const form = new FormData(event.currentTarget);
           setError(undefined);
+          onBusyChange(true);
           try {
             const result = await importer.mutateAsync({
               jiraUrl: String(form.get("jiraUrl")),
@@ -59,6 +60,8 @@ export function LiveSourceImport() {
             navigate(`${FeatureResource.PATH}/${result.id}`);
           } catch (error) {
             setError(actionErrorMessage(error) ?? t("coordinator.error"));
+          } finally {
+            onBusyChange(false);
           }
         }}
       >
@@ -69,6 +72,7 @@ export function LiveSourceImport() {
               id={name}
               name={name}
               type="url"
+              placeholder={t(`coordinator.${name}Placeholder`)}
               required
               maxLength={1000}
               disabled={importer.isPending}
@@ -129,24 +133,34 @@ export function LiveSourceImport() {
             {error}
           </p>
         )}
-        <Button
-          disabled={
-            importer.isPending ||
-            (designProvider === DesignProvider.STITCH &&
-              (!projectId || !screenId))
-          }
-          type="submit"
-        >
-          {t(
-            importer.isPending
-              ? "coordinator.importing"
-              : "coordinator.importSources",
-          )}
-        </Button>
-        <a className="ms-4 text-sm underline" href="/settings/integrations">
-          {t("coordinator.connections")}
-        </a>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            disabled={
+              importer.isPending ||
+              (designProvider === DesignProvider.STITCH &&
+                (!projectId || !screenId))
+            }
+            type="submit"
+          >
+            {t(
+              importer.isPending
+                ? "coordinator.importing"
+                : "coordinator.importSources",
+            )}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={importer.isPending}
+            onClick={onCancel}
+          >
+            {t("coordinator.cancelImport")}
+          </Button>
+          <a className="text-sm underline" href="/settings/integrations">
+            {t("coordinator.connections")}
+          </a>
+        </div>
       </form>
-    </details>
+    </div>
   );
 }

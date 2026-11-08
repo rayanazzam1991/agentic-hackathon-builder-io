@@ -15,6 +15,12 @@ const links = {
     "https://www.figma.com/design/ExampleKey/demo?node-id=0-1&t=ignored",
 };
 describe("live source boundaries", () => {
+  it("identifies a Confluence page entered in the Jira field", () => {
+    expect(() => parseSourceLinks({ ...links, jiraUrl: "https://demo.atlassian.net/wiki/spaces/SD/pages/327682/Order" })).toThrow("Enter a Jira issue URL in the Jira story field");
+  });
+  it("identifies a Jira issue entered in the Confluence field", () => {
+    expect(() => parseSourceLinks({ ...links, confluenceUrl: links.jiraUrl })).toThrow("Confluence page field");
+  });
   it("accepts Stitch without requiring an unrelated Figma URL", () => {
     const input = LiveSourceInput.parse({
       jiraUrl: links.jiraUrl,

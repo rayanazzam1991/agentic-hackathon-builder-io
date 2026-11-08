@@ -24,6 +24,11 @@ CREATE UNIQUE INDEX IF NOT EXISTS coordination_feature_shares_principal_idx
   ON coordination_feature_shares(resource_id, principal_type, principal_id);
 `,
     },
+    {
+      version: 2,
+      name: "feature-progress-status",
+      sql: `ALTER TABLE coordination_features ADD COLUMN feature_status TEXT NOT NULL DEFAULT 'not_started';`,
+    },
   ],
   { table: "_coordination_schema_migrations" },
 );

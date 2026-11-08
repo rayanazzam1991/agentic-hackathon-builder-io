@@ -1,6 +1,10 @@
 import { defineAction, isActionContractError } from "@agent-native/core/action";
 import { DiscordDeliveryStatus } from "@shared/features/discord";
-import { FeatureWriteSchema, RevisionInput } from "@shared/features/types";
+import {
+  DiscordQuestionInput,
+  FeatureWriteSchema,
+  PrimaryQuestionId,
+} from "@shared/features/types";
 
 import {
   discordFailure,
@@ -11,13 +15,13 @@ import { featureLink } from "../server/features/links";
 import { featureWriteReceipt } from "../server/features/receipt";
 export default defineAction({
   description:
-    "Post the exact saved question to its verified Discord channel only after human owner approval in the feature UI. Pending/uncertain deliveries cannot be reposted.",
-  schema: RevisionInput,
+    "Post the exact saved question (the primary one, or the suggested question named by questionId, from its reviewed draft) to its verified Discord channel only after human owner approval in the feature UI. Pending/uncertain deliveries cannot be reposted.",
+  schema: DiscordQuestionInput,
   outputSchema: FeatureWriteSchema,
   errors: featureErrors,
   link: featureLink,
   needsApproval: true,
-  run: async ({ id, revision }, context) => {
+  run: async ({ id, revision, questionId }, context) => {
     if (context?.caller !== "frontend")
       throw featureErrors.noWrite(
         "Review and send this question from the feature screen.",
@@ -25,9 +29,16 @@ export default defineAction({
         { statusCode: 403 },
       );
     try {
-      const { feature, changed } = await sendDiscordQuestion(id, revision);
-      const confirmed =
-        feature.data.discord?.delivery?.status === DiscordDeliveryStatus.SENT;
+      const { feature, changed } = await sendDiscordQuestion(
+        id,
+        revision,
+        questionId,
+      );
+      const thread =
+        questionId && questionId !== PrimaryQuestionId
+          ? feature.data.questions?.find((q) => q.id === questionId)?.discord
+          : feature.data.discord;
+      const confirmed = thread?.delivery?.status === DiscordDeliveryStatus.SENT;
       return {
         ...featureWriteReceipt(
           feature,

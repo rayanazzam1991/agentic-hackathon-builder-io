@@ -2,7 +2,7 @@ import {
   createSharesTable,
   ownableColumns,
 } from "@agent-native/core/db/schema";
-import type { FeatureData } from "@shared/features/types";
+import { FeatureProgress, type FeatureData } from "@shared/features/types";
 import { index, integer, jsonb, pgTable, text } from "drizzle-orm/pg-core";
 
 // One aggregate owns this initial review cycle. Revision compare-and-set keeps
@@ -13,6 +13,7 @@ export const features = pgTable(
     id: text("id").primaryKey(),
     title: text("title").notNull(),
     status: text("status").notNull(),
+    featureStatus: text("feature_status").notNull().default(FeatureProgress.NOT_STARTED),
     revision: integer("revision").notNull().default(1),
     data: jsonb("data").$type<FeatureData>().notNull(),
     ...ownableColumns(),

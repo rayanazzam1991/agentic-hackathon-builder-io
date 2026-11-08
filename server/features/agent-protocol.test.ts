@@ -27,4 +27,21 @@ describe("local action protocol", () => {
   it("refuses malformed output rather than guessing an action", () => {
     expect(() => parseFeatureAgentResponse("Sure, I approved it.")).toThrow();
   });
+  it("allows showing the question card but never ask review", () => {
+    expect(
+      parseFeatureAgentResponse(
+        '{"type":"action","name":"show-feature-questions","args":{"id":"sample"}}',
+      ),
+    ).toMatchObject({ name: "show-feature-questions" });
+    expect(() =>
+      parseFeatureAgentResponse(
+        '{"type":"action","name":"review-feature-suggested-question-ask","args":{"id":"sample","revision":1,"questionId":"q","change":{"event":"approve"}}}',
+      ),
+    ).toThrow();
+    expect(() =>
+      parseFeatureAgentResponse(
+        '{"type":"action","name":"review-feature-question-proposal","args":{"id":"sample","revision":1,"questionId":"q"}}',
+      ),
+    ).toThrow();
+  });
 });
