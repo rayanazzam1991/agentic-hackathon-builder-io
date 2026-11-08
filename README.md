@@ -1,33 +1,27 @@
-# Chat
+# Feature Coordinator
 
-The minimal agent-native starter app — a clean, ChatGPT-style shell with chat at
-the center, durable threads, standard app navigation, auth, live sync, and
-actions. Start here when you want a real browser app to build on without
-committing to a domain template.
+Feature Coordinator helps teams review a feature across specifications, stories, and design, turn discrepancies into questions, and record decisions with human approval. It is the project for the Builder.io hackathon; this repository contains both the application and its supporting material.
 
-**Live app: [chat.agent-native.com](https://chat.agent-native.com?utm_source=github&utm_medium=referral&utm_content=chat-readme)**
+## Run locally
 
-Chat is the basic agent-native app starting point. It gives you the app-agent
-loop wired end to end and one example action, so you can add your own UI, data,
-and actions on top.
+Requires Node.js 22.22 or newer and pnpm 10.29.1.
 
-## Features
-
-- ChatGPT-style shell with a threads list and durable chat history.
-- Auth, live sync, and application state wired out of the box.
-- The action surface the agent and UI share, plus one example action to copy.
-- A minimal, brandable base for any domain app.
-
-## Develop locally
-
-Scaffold your own copy and run it:
-
-```bash
-npx --yes @agent-native/core@latest create my-app --standalone --template chat
-cd my-app
-corepack enable
+```sh
 pnpm install
-pnpm dev
+cp .env.example .env
+pnpm dev:local
 ```
 
-Full docs: [agent-native.com/docs/template-chat](https://agent-native.com/docs/template-chat?utm_source=github&utm_medium=referral&utm_content=chat-readme).
+Open <http://127.0.0.1:8080/features>. Local agent chat uses the host's signed-in Codex CLI; live source integrations require their own configured connections. Never commit credentials or local application data.
+
+## Try the workflow
+
+Start a sample review to explore the question, reply, proposal, and owner-approval flow. Live reviews can capture selected source content and support individually reviewed Discord questions. Captures are snapshots, not continuous monitoring; publication to Confluence remains a preview. See the [review workflow](docs/discord-review.md) and [live source notes](docs/live-source-review.md) for setup and coverage.
+
+## Project materials
+
+- [Product brief](docs/mvp-brief.md) and [demo storyboard](docs/demo-storyboard.md)
+- [Review walkthrough](docs/feature-review-walkthrough.md) and [verification evidence](docs/feature-review-verification.md) describe earlier milestones; their integration status and old `cd feature-coordinator` instructions are historical.
+- [Previous Feature Memory experiment](experiment/README.md) is retained as historical work.
+
+Run `pnpm typecheck` and `pnpm test` for local checks. This repository currently has no Git remote configured; a remote and a reviewed commit are needed before sharing the source with judges.

@@ -1,0 +1,376 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Feature Memory experiment brief v1",
+  "type": "object",
+  "properties": {
+    "contract_version": {
+      "type": "string",
+      "enum": [
+        "1.0"
+      ]
+    },
+    "case_id": {
+      "type": "string"
+    },
+    "story": {
+      "type": "string"
+    },
+    "checkpoint_ids": {
+      "type": "object",
+      "properties": {
+        "handover": {
+          "type": "string"
+        },
+        "return": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "handover",
+        "return"
+      ],
+      "additionalProperties": false
+    },
+    "evidence_version": {
+      "type": "integer"
+    },
+    "coverage": {
+      "type": "object",
+      "properties": {
+        "included_source_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "gaps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "limitations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        }
+      },
+      "required": [
+        "included_source_ids",
+        "gaps",
+        "limitations"
+      ],
+      "additionalProperties": false
+    },
+    "completed_work": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "unfinished_work": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "topic": {
+            "type": "string"
+          },
+          "statement": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "requirement_change",
+              "design_change",
+              "implementation_behavior",
+              "business_intent",
+              "possible_impact",
+              "next_action"
+            ]
+          },
+          "epistemic_label": {
+            "type": "string",
+            "enum": [
+              "supported",
+              "inferred",
+              "unknown"
+            ]
+          },
+          "knowledge_basis": {
+            "type": "string",
+            "enum": [
+              "documentary",
+              "human_assertion",
+              "inference",
+              "unknown"
+            ]
+          },
+          "review_state": {
+            "type": "string",
+            "enum": [
+              "unreviewed",
+              "confirmed",
+              "corrected",
+              "dismissed"
+            ]
+          },
+          "story_relevance": {
+            "type": "string"
+          },
+          "references": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "source_id": {
+                  "type": "string"
+                },
+                "locator": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "source_id",
+                "locator"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "id",
+          "topic",
+          "statement",
+          "category",
+          "epistemic_label",
+          "knowledge_basis",
+          "review_state",
+          "story_relevance",
+          "references"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 1
+    },
+    "relevant_message_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "excluded_message_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "conflicts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "statement": {
+            "type": "string"
+          },
+          "references": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "source_id": {
+                  "type": "string"
+                },
+                "locator": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "source_id",
+                "locator"
+              ],
+              "additionalProperties": false
+            },
+            "minItems": 2
+          },
+          "resolution_question": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "statement",
+          "references",
+          "resolution_question"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "open_questions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "question": {
+            "type": "string"
+          },
+          "references": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "source_id": {
+                  "type": "string"
+                },
+                "locator": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "source_id",
+                "locator"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "id",
+          "question",
+          "references"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "proposed_checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "execution_state": {
+            "type": "string",
+            "enum": [
+              "not_run"
+            ]
+          },
+          "references": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "source_id": {
+                  "type": "string"
+                },
+                "locator": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "source_id",
+                "locator"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "description",
+          "execution_state",
+          "references"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "follow_ups": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "question_id": {
+            "type": "string"
+          },
+          "recipient": {
+            "type": "string"
+          },
+          "draft": {
+            "type": "string"
+          },
+          "delivery_state": {
+            "type": "string",
+            "enum": [
+              "not_sent"
+            ]
+          },
+          "reply_state": {
+            "type": "string",
+            "enum": [
+              "unanswered",
+              "answered"
+            ]
+          },
+          "reply_source_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "remaining_uncertainty": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "question_id",
+          "recipient",
+          "draft",
+          "delivery_state",
+          "reply_state",
+          "reply_source_ids",
+          "remaining_uncertainty"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "preserved_review_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "contract_version",
+    "case_id",
+    "story",
+    "checkpoint_ids",
+    "evidence_version",
+    "coverage",
+    "completed_work",
+    "unfinished_work",
+    "claims",
+    "relevant_message_ids",
+    "excluded_message_ids",
+    "conflicts",
+    "open_questions",
+    "proposed_checks",
+    "follow_ups",
+    "preserved_review_ids"
+  ],
+  "additionalProperties": false
+}

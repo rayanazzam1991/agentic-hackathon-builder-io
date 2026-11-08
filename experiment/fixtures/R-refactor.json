@@ -1,0 +1,69 @@
+{
+  "schema_version": "1.0",
+  "case_id": "R-refactor",
+  "example_data": true,
+  "project": "Atlas Projects",
+  "feature": "Project Management",
+  "story": "ATLAS-142",
+  "story_scope": "Resume project-edit flow: form layout, permissions, and verification; archive relevance is unresolved unless evidenced.",
+  "checkpoints": {
+    "handover": {
+      "id": "handover-2026-10-26",
+      "at": "2026-10-26T09:00:00+02:00"
+    },
+    "return": {
+      "id": "return-2026-11-02",
+      "at": "2026-11-02T09:00:00+02:00"
+    }
+  },
+  "evidence_version": 1,
+  "sources": [
+    {
+      "id": "handover",
+      "kind": "handover_note",
+      "version": "1",
+      "captured_at": "2026-10-26T09:00:00+02:00",
+      "lines": [
+        "Example data. Maya handed ATLAS-142 to Leo for one week of PTO, October 26–November 2, 2026.",
+        "Feature: Project Management. Story: ATLAS-142, project-edit flow.",
+        "Completed: form layout only.",
+        "Unfinished: permission handling and verification, including direct server requests.",
+        "Resume work within this story; do not treat all Project Management changes as new requirements."
+      ],
+      "author": "Maya",
+      "covering_developer": "Leo"
+    },
+    {
+      "id": "code-before",
+      "kind": "code_excerpt",
+      "version": "demo-before",
+      "captured_at": "2026-10-26T09:00:00+02:00",
+      "lines": [
+        "// server.ts: supplied authorization excerpt",
+        "export const canEdit = (role: string) => role === 'manager';",
+        "// editor.ts: supplied UI excerpt",
+        "export const showEdit = (role: string) => role === 'manager';"
+      ]
+    },
+    {
+      "id": "code-after",
+      "kind": "code_excerpt",
+      "version": "demo-after",
+      "captured_at": "2026-11-02T09:00:00+02:00",
+      "lines": [
+        "// policy.ts: supplied shared helper",
+        "export const canEditProject = (role: string) => role === 'manager';",
+        "// server.ts: supplied authorization excerpt",
+        "export const canEdit = canEditProject;",
+        "// editor.ts: supplied UI excerpt",
+        "export const showEdit = canEditProject;",
+        "// No test execution record or code outside these excerpts is provided."
+      ]
+    }
+  ],
+  "missing_sources": [
+    "Jira, Figma, and full repository unavailable; code excerpts only."
+  ],
+  "saved_reviews": [],
+  "prior_brief": null
+}

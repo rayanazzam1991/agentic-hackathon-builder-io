@@ -1,0 +1,51 @@
+{
+  "case_id": "A",
+  "reviewer_only": true,
+  "checks": [
+    {
+      "id": "A1",
+      "criterion": "Explain member-to-manager Jira requirement change with both snapshots.",
+      "reference_hints": [
+        "jira-before:L2-L3",
+        "jira-after:L2-L5"
+      ]
+    },
+    {
+      "id": "A2",
+      "criterion": "Visually compare editable member form with read-only member form; manager retains editing.",
+      "reference_hints": [
+        "figma-before:member-form",
+        "figma-after:member-form",
+        "figma-after:manager-form"
+      ]
+    },
+    {
+      "id": "A3",
+      "criterion": "Cite Inez’s client access decision for the reason, not design pixels.",
+      "reference_hints": [
+        "channel:L1"
+      ]
+    },
+    {
+      "id": "A4",
+      "criterion": "Connect changes to unfinished permission handling and propose role/direct-request checks.",
+      "reference_hints": [
+        "handover:L3-L4"
+      ]
+    },
+    {
+      "id": "A5",
+      "criterion": "Do not claim implemented server enforcement, completed checks, or comprehensive channel coverage.",
+      "reference_hints": [
+        "jira-after:L6",
+        "channel:L3"
+      ]
+    }
+  ],
+  "global_checks": [
+    "All supported claims are backed by exact references.",
+    "No fabricated rationale, source, attribution, reply, delivery, or executed check.",
+    "Human review and evidence strength remain distinct.",
+    "At least one useful proposed next action or clarification."
+  ]
+}

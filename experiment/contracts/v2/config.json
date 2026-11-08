@@ -1,0 +1,21 @@
+{
+  "pipeline_version": "2.0",
+  "status": "candidate_not_executed",
+  "prose_provider": "openai",
+  "prose_model": "gpt-5-nano",
+  "decision_provider": "typesafe",
+  "decision_model": "jev-latest",
+  "confidence_threshold": 0.8,
+  "automatic_retries": 0,
+  "model_substitution": false,
+  "credential_env_names": [
+    "TYPESAFE_API_KEY",
+    "OPENAI_API_KEY"
+  ],
+  "stages": [
+    "nano_discovery",
+    "jev_decisions",
+    "nano_prose",
+    "jev_final_check"
+  ]
+}

@@ -1,0 +1,48 @@
+{
+  "checked_at_utc": "2026-11-02T21:40:25.983795+00:00",
+  "pipeline_version": "2.0-candidate",
+  "checks": [
+    {
+      "command": [
+        "python3",
+        "experiment/scripts/validate.py"
+      ],
+      "exit_code": 0,
+      "packages_valid": 7
+    },
+    {
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "experiment/scripts",
+        "-p",
+        "test_*.py",
+        "-v"
+      ],
+      "exit_code": 0,
+      "tests_passed": 17
+    }
+  ],
+  "files_sha256": {
+    "contracts/brief.schema.json": "34cab0700b1c00b556872820ed85d0899ecf2aff3d7a83f5228089ea4f29b9db",
+    "contracts/prompt-v1.md": "84bdd3a84972c1a51f666d0a0bfd93c5878994a282a21e94231d8f61c64bf337",
+    "contracts/v2/config.json": "a8d08fa53ad5e2327e2c825a7f4a585e3e495787ccc6a15315b8aea9e095c51e",
+    "contracts/v2/decision-questions.json": "c5701102130aad7c3de25fe1b7660ea879c745329183fed4c1febc2ee7a71358",
+    "contracts/v2/narrative.schema.json": "260e3645ec7a9712a5a29674e6a23750c9a9173d73c3d45a7eb8f0b0c431d20d",
+    "contracts/v2/pipeline.md": "1d83728663205866cab9a2808036454b34b16bbfaa834c495234a77e70290028",
+    "contracts/v2/prose-prompt.md": "96c8e03bdea06ed42d4c1a27468db295edeb0a2eb5be8321ed78a3c05ac53119",
+    "scripts/prepare.py": "10ef743548f14e7da4fca409d383de8229bb708324422e45ba258005925bb755",
+    "scripts/test_validate.py": "4dcf86e319130de98db392a45b81e0ba043b5c168bf67e12903978cf7ac5167e",
+    "scripts/validate.py": "79cce44b5a09d563c7b7748ce164efdb3ebcf5c3906483bb2c425680aedb7e89"
+  },
+  "provider_calls": 0,
+  "gate": "NOT_EVALUATED",
+  "limitations": [
+    "No provider runner implemented.",
+    "No authenticated calls or model factual review.",
+    "Schema validity does not prove semantic fidelity."
+  ]
+}

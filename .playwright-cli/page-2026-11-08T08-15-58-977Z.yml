@@ -1,0 +1,222 @@
+- generic [active] [ref=f2e1]:
+  - generic [ref=f2e21]:
+    - complementary [ref=f2e23]:
+      - link "Feature Coordinator" [ref=f2e25] [cursor=pointer]:
+        - /url: /
+      - navigation "Navigation" [ref=f2e30]:
+        - link "Features" [ref=f2e32] [cursor=pointer]:
+          - /url: /features
+        - link "Settings" [ref=f2e39] [cursor=pointer]:
+          - /url: /settings
+      - generic [ref=f2e45]:
+        - button "dev@local.test, Dev's workspace" [ref=f2e47] [cursor=pointer]:
+          - generic [ref=f2e48]: DL
+          - generic [ref=f2e50]:
+            - generic [ref=f2e51]: dev@local.test
+            - generic [ref=f2e52]: Dev's workspace
+        - button "Search" [ref=f2e57] [cursor=pointer]
+        - button "Collapse sidebar" [ref=f2e61] [cursor=pointer]
+    - main [ref=f2e68]:
+      - main [ref=f2e83]:
+        - generic [ref=f2e84]:
+          - strong [ref=f2e85]: Live source snapshots
+          - text: Captured from connected providers. These snapshots do not automatically refresh. Import again for a new review of current sources. Discord questions require owner confirmation. Specification changes remain previews.
+        - link "All features" [ref=f2e86] [cursor=pointer]:
+          - /url: /features
+        - generic [ref=f2e90]:
+          - generic [ref=f2e91]:
+            - heading "Live · BE — Implement order cancellation eligibility and API" [level=1] [ref=f2e92]
+            - generic [ref=f2e93]:
+              - generic [ref=f2e94]: "Feature status: In progress"
+              - generic [ref=f2e95]: Revision 9
+          - generic [ref=f2e96]:
+            - button "Mark done" [ref=f2e97] [cursor=pointer]
+            - button "Mark not started" [ref=f2e98] [cursor=pointer]
+            - button "Share" [ref=f2e99] [cursor=pointer]
+            - button "Ask agent to review" [ref=f2e100] [cursor=pointer]
+        - generic [ref=f2e101]:
+          - generic [ref=f2e102]: "Primary question:"
+          - generic [ref=f2e103]: Needs an answer
+        - region [ref=f2e113]:
+          - generic [ref=f2e114]:
+            - generic [ref=f2e115]:
+              - heading "Questions" [level=2] [ref=f2e116]
+              - generic [ref=f2e117]: 2 suggested
+            - paragraph [ref=f2e118]: Every question for this review. Approval here only permits asking in Discord; it never approves a business decision and sends nothing.
+          - list [ref=f2e119]:
+            - listitem [ref=f2e120]:
+              - generic [ref=f2e121]:
+                - generic [ref=f2e122]: Primary question
+                - generic [ref=f2e123]: Pending approval
+              - paragraph [ref=f2e124]: Review the captured sources for conflicting or missing business rules. Identify evidence and questions; do not assume a mismatch or a PO decision.
+              - paragraph [ref=f2e125]: "Managed in the sections below: replies, proposal and Discord delivery."
+              - generic [ref=f2e126]:
+                - generic [ref=f2e127]:
+                  - term [ref=f2e128]: Suggested responsibility
+                  - definition [ref=f2e129]: Product owner
+                - generic [ref=f2e130]:
+                  - term [ref=f2e131]: Recipient
+                  - definition [ref=f2e132]: Unresolved · choose a mapped Discord role before approval
+                - generic [ref=f2e133]:
+                  - term [ref=f2e134]: Delivery
+                  - definition [ref=f2e135]: Not sent
+            - listitem [ref=f2e136]:
+              - generic [ref=f2e137]:
+                - generic [ref=f2e138]: Posed by a source
+                - generic [ref=f2e139]: Pending approval
+              - paragraph [ref=f2e140]: Should the cancellation window remain 24 hours or change to 48 hours? The captured Jira and Confluence baseline says 24 hours, while the captured Stitch policy text says 48 hours.
+              - generic [ref=f2e141]:
+                - generic [ref=f2e142]:
+                  - term [ref=f2e143]: Suggested responsibility
+                  - definition [ref=f2e144]:
+                    - text: Product owner
+                    - generic [ref=f2e145]: "Reason: Confluence explicitly assigns Q1 and approval of business rules to the Product owner. This is the next business decision; no approved change is recorded."
+                - generic [ref=f2e146]:
+                  - term [ref=f2e147]: Recipient
+                  - definition [ref=f2e148]:
+                    - combobox "Recipient role" [ref=f2e149] [cursor=pointer]:
+                      - generic: No recipient
+                    - button "Choose a person or role…" [ref=f2e152] [cursor=pointer]
+                    - generic [ref=f2e153]: Unresolved · choose a mapped Discord role before approval
+                - generic [ref=f2e154]:
+                  - term [ref=f2e155]: Delivery
+                  - definition [ref=f2e156]: Not sent
+              - group [ref=f2e157]:
+                - generic "Supporting evidence (3)" [ref=f2e158] [cursor=pointer]
+              - generic [ref=f2e159]:
+                - button "Edit" [ref=f2e160] [cursor=pointer]
+                - button "Approve asking" [disabled]
+                - button "Reject" [ref=f2e161] [cursor=pointer]
+                - button "Dismiss" [ref=f2e162] [cursor=pointer]
+                - generic [ref=f2e163]: Select a recipient to enable approval.
+            - listitem [ref=f2e164]:
+              - generic [ref=f2e165]:
+                - generic [ref=f2e166]: Agent finding
+                - generic [ref=f2e167]: Pending approval
+              - paragraph [ref=f2e168]: What exact API response should the frontend receive when eligibility expires, and is cancellation allowed at the exact deadline? Document the response and boundary rule against the approved window.
+              - generic [ref=f2e169]:
+                - generic [ref=f2e170]:
+                  - term [ref=f2e171]: Suggested responsibility
+                  - definition [ref=f2e172]:
+                    - text: Backend developer
+                    - generic [ref=f2e173]: "Reason: Confluence assigns the expired-eligibility response to Backend developer, and the backend Jira task requires documented and tested deadline behaviour. Any unresolved business boundary requires Product owner clarification."
+                - generic [ref=f2e174]:
+                  - term [ref=f2e175]: Recipient
+                  - definition [ref=f2e176]:
+                    - combobox "Recipient role" [ref=f2e177] [cursor=pointer]:
+                      - generic: No recipient
+                    - button "Choose a person or role…" [ref=f2e180] [cursor=pointer]
+                    - generic [ref=f2e181]: Unresolved · choose a mapped Discord role before approval
+                - generic [ref=f2e182]:
+                  - term [ref=f2e183]: Delivery
+                  - definition [ref=f2e184]: Not sent
+              - group [ref=f2e185]:
+                - generic "Supporting evidence (3)" [ref=f2e186] [cursor=pointer]
+              - generic [ref=f2e187]:
+                - button "Edit" [ref=f2e188] [cursor=pointer]
+                - button "Approve asking" [disabled]
+                - button "Reject" [ref=f2e189] [cursor=pointer]
+                - button "Dismiss" [ref=f2e190] [cursor=pointer]
+                - generic [ref=f2e191]: Select a recipient to enable approval.
+        - region [ref=f2e192]:
+          - heading "Review the business rules" [level=2] [ref=f2e193]
+          - paragraph [ref=f2e194]: Review the captured sources for conflicting or missing business rules. Identify evidence and questions; do not assume a mismatch or a PO decision.
+          - generic [ref=f2e195]:
+            - generic [ref=f2e196]:
+              - text: Question owner
+              - combobox "Question owner" [ref=f2e197] [cursor=pointer]:
+                - generic: Product owner
+              - combobox [aria-hidden] [ref=f2e200]
+            - button "Save owner" [disabled]
+          - group [ref=f2e201]:
+            - generic "Suggested question Suggestion only" [ref=f2e202] [cursor=pointer]
+          - generic [ref=f2e203]:
+            - heading "Record a reply" [level=3] [ref=f2e204]
+            - paragraph [ref=f2e205]: Record an actual answer from the responsible person. No reply is fetched or sent automatically.
+            - generic [ref=f2e206]:
+              - text: Reply from
+              - textbox "Reply from" [ref=f2e207]: Product owner
+            - generic [ref=f2e208]:
+              - text: Reply text
+              - textbox "Reply text" [ref=f2e209]
+            - button "Save reply" [disabled]
+        - region [ref=f2e210]:
+          - heading "Ask in Discord" [level=2] [ref=f2e211]
+          - link "#feature-coordination" [ref=f2e212] [cursor=pointer]:
+            - /url: https://discord.com/channels/1567817386537648188/1567817498597007531
+          - region [ref=f2e213]:
+            - generic [ref=f2e214]:
+              - heading "People and roles" [level=3] [ref=f2e215]
+              - button "Load server roles" [ref=f2e216] [cursor=pointer]
+            - paragraph [ref=f2e217]: Map each responsibility to a Discord role. Save the question draft again to apply the current question owner's mapping. Mapping a role does not grant app access or prove who may approve a decision.
+            - generic [ref=f2e218]:
+              - generic [ref=f2e219]:
+                - text: Product owner
+                - paragraph [ref=f2e220]: "@PO"
+                - paragraph [ref=f2e221]: Notification permission has not been verified. You can save a draft; reload roles to check. Sending requires a fresh permission check.
+              - generic [ref=f2e222]:
+                - text: Frontend developer
+                - paragraph [ref=f2e223]: Not mapped
+              - generic [ref=f2e224]:
+                - text: Backend developer
+                - paragraph [ref=f2e225]: Not mapped
+              - generic [ref=f2e226]:
+                - text: Designer
+                - paragraph [ref=f2e227]: Not mapped
+            - generic [ref=f2e228]:
+              - heading "People directory" [level=4] [ref=f2e229]
+              - generic [ref=f2e231]:
+                - paragraph [ref=f2e232]: People and roles this bot can verify for the connected channel. Discord membership and roles show who can be notified; they never establish who is responsible for or may approve a decision.
+                - button "Load people and roles" [ref=f2e233] [cursor=pointer]
+          - generic [ref=f2e234]:
+            - text: Question for the team
+            - textbox "Question for the team" [ref=f2e235]
+            - button "Save unsent draft" [disabled]
+        - region [ref=f2e236]:
+          - heading "Source evidence" [level=2] [ref=f2e237]
+          - generic [ref=f2e238]:
+            - generic [ref=f2e239]:
+              - generic [ref=f2e240]:
+                - heading "jira" [level=3] [ref=f2e241]
+                - paragraph [ref=f2e242]: 2026-11-04T16:04:58.676+0200
+                - link "Open source" [ref=f2e243] [cursor=pointer]:
+                  - /url: https://rayansworkspace-44831581.atlassian.net/browse/KAN-3
+                - paragraph [ref=f2e244]: Captured 11/7/2026, 7:23:54 PM
+              - generic [ref=f2e245]:
+                - paragraph [ref=f2e246]: Story description only. Comments, linked issues and separate acceptance-criteria custom fields are not included.
+                - group [ref=f2e247]:
+                  - generic "View captured text" [ref=f2e248] [cursor=pointer]
+            - generic [ref=f2e249]:
+              - generic [ref=f2e250]:
+                - heading "confluence" [level=3] [ref=f2e251]
+                - paragraph [ref=f2e252]: Version 1
+                - link "Open source" [ref=f2e253] [cursor=pointer]:
+                  - /url: https://rayansworkspace-44831581.atlassian.net/wiki/pages/viewpage.action?pageId=327682
+                - paragraph [ref=f2e254]: Captured 11/7/2026, 7:23:54 PM
+              - generic [ref=f2e255]:
+                - paragraph [ref=f2e256]: Published page text only. Comments, attachments and rendered macros are not included.
+                - group [ref=f2e257]:
+                  - generic "View captured text" [ref=f2e258] [cursor=pointer]
+            - generic [ref=f2e259]:
+              - generic [ref=f2e260]:
+                - heading "stitch" [level=3] [ref=f2e261]
+                - paragraph [ref=f2e262]: Current at capture; no version supplied
+                - link "Open source" [ref=f2e263] [cursor=pointer]:
+                  - /url: https://stitch.withgoogle.com/projects/11130262895279483894?screenId=9215cbb6f0ce4f10a4aac5c617e63e5b
+                - paragraph [ref=f2e264]: Captured 11/7/2026, 7:23:54 PM
+              - generic [ref=f2e265]:
+                - paragraph [ref=f2e266]: Selected screen's exported static HTML text. Scripts are not executed. Images, rendered visibility, prototype behaviour and other screens are not verified.
+                - group [ref=f2e267]:
+                  - generic "View captured text" [ref=f2e268] [cursor=pointer]
+        - region [ref=f2e269]:
+          - heading "Review sessions" [level=2] [ref=f2e270]
+          - list [ref=f2e271]:
+            - listitem [ref=f2e272]:
+              - 'button "Review feature: Live · BE — Implement order cancellation eligibility and API" [ref=f2e273] [cursor=pointer]'
+              - 'button "Remove Review feature: Live · BE — Implement order cancellation eligibility and API from review sessions" [ref=f2e274] [cursor=pointer]': Remove
+            - listitem [ref=f2e275]:
+              - 'button "Review: Live · BE — Implement order cancellation eligibility and API" [ref=f2e276] [cursor=pointer]'
+              - 'button "Remove Review: Live · BE — Implement order cancellation eligibility and API from review sessions" [ref=f2e277] [cursor=pointer]': Remove
+        - group [ref=f2e278]:
+          - generic "Activity" [ref=f2e279] [cursor=pointer]
+  - region "Notifications alt+T"

@@ -1,0 +1,43 @@
+{
+  "case_id": "B",
+  "reviewer_only": true,
+  "checks": [
+    {
+      "id": "B1",
+      "criterion": "Keep ATLAS-199 branding chatter out of ATLAS-142 next actions.",
+      "reference_hints": [
+        "channel:L2"
+      ]
+    },
+    {
+      "id": "B2",
+      "criterion": "Surface newer member-edit design conflict with manager-only Jira and approved policy.",
+      "reference_hints": [
+        "figma-after:member-form",
+        "jira-after:L2-L5",
+        "channel:L1",
+        "channel:L4"
+      ]
+    },
+    {
+      "id": "B3",
+      "criterion": "Ask which design/requirement is approved; do not use recency as approval.",
+      "reference_hints": [
+        "channel:L4"
+      ]
+    },
+    {
+      "id": "B4",
+      "criterion": "Preserve original handover and relevant unfinished work.",
+      "reference_hints": [
+        "handover:L3-L4"
+      ]
+    }
+  ],
+  "global_checks": [
+    "All supported claims are backed by exact references.",
+    "No fabricated rationale, source, attribution, reply, delivery, or executed check.",
+    "Human review and evidence strength remain distinct.",
+    "At least one useful proposed next action or clarification."
+  ]
+}

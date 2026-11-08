@@ -1,0 +1,153 @@
+{
+  "schema_version": "1.0",
+  "case_id": "D-initial",
+  "example_data": true,
+  "project": "Atlas Projects",
+  "feature": "Project Management",
+  "story": "ATLAS-142",
+  "story_scope": "Resume project-edit flow: form layout, permissions, and verification; archive relevance is unresolved unless evidenced.",
+  "checkpoints": {
+    "handover": {
+      "id": "handover-2026-10-26",
+      "at": "2026-10-26T09:00:00+02:00"
+    },
+    "return": {
+      "id": "return-2026-11-02",
+      "at": "2026-11-02T09:00:00+02:00"
+    }
+  },
+  "evidence_version": 1,
+  "sources": [
+    {
+      "id": "handover",
+      "kind": "handover_note",
+      "version": "1",
+      "captured_at": "2026-10-26T09:00:00+02:00",
+      "lines": [
+        "Example data. Maya handed ATLAS-142 to Leo for one week of PTO, October 26–November 2, 2026.",
+        "Feature: Project Management. Story: ATLAS-142, project-edit flow.",
+        "Completed: form layout only.",
+        "Unfinished: permission handling and verification, including direct server requests.",
+        "Resume work within this story; do not treat all Project Management changes as new requirements."
+      ],
+      "author": "Maya",
+      "covering_developer": "Leo"
+    },
+    {
+      "id": "jira-after",
+      "kind": "jira_snapshot",
+      "version": "2",
+      "captured_at": "2026-11-02T09:00:00+02:00",
+      "lines": [
+        "ATLAS-142: Project edit flow. Example Jira snapshot at return.",
+        "Description: restrict editing of project details to project managers.",
+        "AC-1: a project manager can edit and save the project name.",
+        "AC-2: a regular member sees project details in read-only mode.",
+        "AC-3: server edit requests from regular members must be rejected.",
+        "This snapshot records requirements, not deployed implementation or passing tests."
+      ]
+    },
+    {
+      "id": "figma-before",
+      "kind": "design_image",
+      "version": "handover-v1",
+      "captured_at": "2026-10-26T09:00:00+02:00",
+      "image_path": "images/handover.png",
+      "frame_id": "atlas-project-details",
+      "regions": {
+        "banner": [
+          0,
+          0,
+          1200,
+          90
+        ],
+        "manager-form": [
+          45,
+          140,
+          595,
+          640
+        ],
+        "member-form": [
+          620,
+          140,
+          1170,
+          640
+        ],
+        "archive-control": [
+          45,
+          650,
+          595,
+          745
+        ]
+      },
+      "provenance": "Locally rendered synthetic example design; not exported from or hosted in Figma."
+    },
+    {
+      "id": "figma-after",
+      "kind": "design_image",
+      "version": "return-v2-archive-absent",
+      "captured_at": "2026-10-30T15:00:00+02:00",
+      "image_path": "images/return-c.png",
+      "frame_id": "atlas-project-details",
+      "regions": {
+        "banner": [
+          0,
+          0,
+          1200,
+          90
+        ],
+        "manager-form": [
+          45,
+          140,
+          595,
+          640
+        ],
+        "member-form": [
+          620,
+          140,
+          1170,
+          640
+        ],
+        "archive-control": [
+          45,
+          650,
+          595,
+          745
+        ]
+      },
+      "provenance": "Locally rendered synthetic example design; not exported from or hosted in Figma."
+    },
+    {
+      "id": "channel",
+      "kind": "channel_export",
+      "version": "1",
+      "captured_at": "2026-11-02T09:00:00+02:00",
+      "lines": [
+        "message=m1; thread=policy; author=Inez (product owner); at=2026-10-28T10:00:00+02:00; story=ATLAS-142; Approved: only project managers may edit project details to meet the client access requirement. Update acceptance criteria and design.",
+        "message=m2; thread=branding; author=Omar; at=2026-10-29T14:00:00+02:00; story=ATLAS-199; Dashboard branding colors need review. This is a separate story.",
+        "Export coverage: these messages only; not the entire feature channel."
+      ]
+    }
+  ],
+  "missing_sources": [
+    "Jira handover snapshot unavailable; cannot compare old Jira description or criteria."
+  ],
+  "saved_reviews": [
+    {
+      "id": "REVIEW-1",
+      "topic": "handover.permission_status",
+      "author": "Maya",
+      "at": "2026-11-02T09:00:00+02:00",
+      "review_state": "corrected",
+      "original_text": "The completed form includes permission handling.",
+      "corrected_text": "Only the form layout is complete. Permission handling and verification remain unfinished."
+    }
+  ],
+  "prior_brief": "RUNTIME_PREVIOUS_C_OUTPUT",
+  "follow_up": {
+    "question_id": "Q-ARCHIVE",
+    "recipient": "Leo",
+    "delivery_state": "not_sent",
+    "reply_state": "unanswered"
+  }
+}

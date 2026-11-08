@@ -1,0 +1,3 @@
+- status "Loading application" [ref=e2]:
+  - complementary [aria-hidden] [ref=e3]
+  - main [aria-hidden] [ref=e12]

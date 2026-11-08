@@ -1,0 +1,58 @@
+{
+  "checked_at_utc": "2026-11-02T21:30:26.008469+00:00",
+  "checks": [
+    {
+      "command": [
+        "python3",
+        "experiment/scripts/validate.py"
+      ],
+      "exit_code": 0,
+      "stdout": "A.json: valid; 6 sources\nB.json: valid; 6 sources\nC.json: valid; 5 sources\nD-initial.json: valid; 5 sources\nD-reply.json: valid; 6 sources\nR-injection.json: valid; 6 sources\nR-refactor.json: valid; 3 sources\n7 packages valid. No model generation or factual review implied.\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "experiment/scripts",
+        "-p",
+        "test_*.py",
+        "-v"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "test_answer_without_reply_rejected (test_validate.ValidationTests.test_answer_without_reply_rejected) ... ok\ntest_disjoint_message_selection (test_validate.ValidationTests.test_disjoint_message_selection) ... ok\ntest_duplicate_source_rejected (test_validate.ValidationTests.test_duplicate_source_rejected) ... ok\ntest_fabricated_region_rejected (test_validate.ValidationTests.test_fabricated_region_rejected) ... ok\ntest_fabricated_source_rejected (test_validate.ValidationTests.test_fabricated_source_rejected) ... ok\ntest_followup_preparation_requires_actual_prior_output (test_validate.ValidationTests.test_followup_preparation_requires_actual_prior_output) ... ok\ntest_image_region_bounds_rejected (test_validate.ValidationTests.test_image_region_bounds_rejected) ... ok\ntest_invalid_checkpoint_rejected (test_validate.ValidationTests.test_invalid_checkpoint_rejected) ... ok\ntest_missing_support_rejected (test_validate.ValidationTests.test_missing_support_rejected) ... ok\ntest_out_of_bounds_lines_rejected (test_validate.ValidationTests.test_out_of_bounds_lines_rejected) ... ok\ntest_oversize_text_rejected (test_validate.ValidationTests.test_oversize_text_rejected) ... ok\ntest_path_escape_rejected (test_validate.ValidationTests.test_path_escape_rejected) ... ok\ntest_prepare_excludes_answer_keys_and_preserves_hashes (test_validate.ValidationTests.test_prepare_excludes_answer_keys_and_preserves_hashes) ... ok\ntest_unexecuted_check_cannot_pass (test_validate.ValidationTests.test_unexecuted_check_cannot_pass) ... ok\ntest_unpreserved_review_rejected (test_validate.ValidationTests.test_unpreserved_review_rejected) ... ok\ntest_valid_structure_is_not_factual_verdict (test_validate.ValidationTests.test_valid_structure_is_not_factual_verdict) ... ok\n\n----------------------------------------------------------------------\nRan 16 tests in 0.009s\n\nOK\n"
+    }
+  ],
+  "files_sha256": {
+    "fixtures/A.json": "05e2fc44c609f9b5e2bf458885ddc46f621081b2fc215da23e32726ca15e28ba",
+    "fixtures/B.json": "cd17d101fffc507ccf1d00983c73f882f5cfa928b1cf1379fa195db6ee36f406",
+    "fixtures/C.json": "c4e35660c34370673a819c1208c4670dcf77c6e5c290a63d7b8b6ea9a84366c1",
+    "fixtures/D-initial.json": "7550673a62fc264f136ae44b06655cd210905f00fc844fa84f43a5a0e292641d",
+    "fixtures/D-reply.json": "8cf04052daed952efe942ce0bc20e46cb4708d179ef184fbb326537bd6523ad6",
+    "fixtures/R-injection.json": "3bb02c8eba7f19537bbaa8a916ab8283e80e0c3c0e9552d4cee59c5d01336436",
+    "fixtures/R-refactor.json": "dd03a51c7cf2951a003b3302fd3bb5d101dded1ab2e6475b25b79231ff05601f",
+    "fixtures/images/handover.png": "664575f5537b108d80c3b56b74ea294c7f3c7d6d6218440f2e8555b3f2ed10c6",
+    "fixtures/images/return-a.png": "28e4760a35909ac42cf229f4bcb5a4e160f704ada98bd3d99ecae0639746029d",
+    "fixtures/images/return-b.png": "b7034a555a7a7a5dcff56178907d8f3623a877181982af5d14209796e117b36e",
+    "fixtures/images/return-c.png": "995fe8ce914950775618ca5fca1d9b2a3b3b7e209cc0bfc84c46342f660a1eaa",
+    "contracts/brief.schema.json": "34cab0700b1c00b556872820ed85d0899ecf2aff3d7a83f5228089ea4f29b9db",
+    "contracts/prompt-v1.md": "84bdd3a84972c1a51f666d0a0bfd93c5878994a282a21e94231d8f61c64bf337",
+    "answer-keys/A.json": "8d237508d181907942b72f424f340f6399873f6fc88834fd891f414494505c8e",
+    "answer-keys/B.json": "33361117f8859706872def54467bfb42f9c4dfb69ba30269d389774b02f0a6b2",
+    "answer-keys/C.json": "1035da9cb546f41aab9fa409246fd875b1ffe85ba873b99dd9d1e27927c3afa1",
+    "answer-keys/D-initial.json": "fec70d39bd32936b4fb192ad85735bc58306a6b2c2f2ba5c6e3db0d0778dc703",
+    "answer-keys/D-reply.json": "a4f426f968f842fe3384fe2e22301d99549abedac24686338f11ecc297ed7d2b",
+    "answer-keys/R-injection.json": "c2a5b852b6456d7c509cb04e7c7200addcaa5a50f4ca4b4702271e29ee1e10de",
+    "answer-keys/R-refactor.json": "09462d926b020adf567c8698101a4a6528e94fc10eaafdbfaf9d7876285df989",
+    "scripts/prepare.py": "10ef743548f14e7da4fca409d383de8229bb708324422e45ba258005925bb755",
+    "scripts/test_validate.py": "7d73c758824f35bc5add251f78b335c87744f18e5d52a06bc127145efb46f157",
+    "scripts/validate.py": "6f5d05ce53c158ffe29db9cb65d75bc7833ca455fc70b859d9d14b636464d21c"
+  },
+  "model_calls": 0,
+  "gate": "NOT_EVALUATED",
+  "limitation": "Offline integrity checks only; no model accuracy evidence."
+}

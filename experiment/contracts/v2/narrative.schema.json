@@ -1,0 +1,217 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Feature Memory narrative v2",
+  "type": "object",
+  "properties": {
+    "pipeline_version": {
+      "type": "string",
+      "enum": [
+        "2.0"
+      ]
+    },
+    "case_id": {
+      "type": "string"
+    },
+    "story": {
+      "type": "string"
+    },
+    "evidence_version": {
+      "type": "integer"
+    },
+    "paragraphs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "section": {
+            "type": "string",
+            "enum": [
+              "handover",
+              "changes",
+              "reasons",
+              "impact",
+              "uncertainty"
+            ]
+          },
+          "text": {
+            "type": "string"
+          },
+          "claim_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "references": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "source_id": {
+                  "type": "string"
+                },
+                "locator": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "source_id",
+                "locator"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "epistemic_label": {
+            "type": "string",
+            "enum": [
+              "supported",
+              "inferred",
+              "unknown"
+            ]
+          }
+        },
+        "required": [
+          "section",
+          "text",
+          "claim_ids",
+          "references",
+          "epistemic_label"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "open_questions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "question": {
+            "type": "string"
+          },
+          "references": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "source_id": {
+                  "type": "string"
+                },
+                "locator": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "source_id",
+                "locator"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "id",
+          "question",
+          "references"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "dm_drafts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "question_id": {
+            "type": "string"
+          },
+          "recipient": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "delivery_state": {
+            "type": "string",
+            "enum": [
+              "not_sent"
+            ]
+          }
+        },
+        "required": [
+          "question_id",
+          "recipient",
+          "text",
+          "delivery_state"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "proposed_checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "execution_state": {
+            "type": "string",
+            "enum": [
+              "not_run"
+            ]
+          },
+          "references": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "source_id": {
+                  "type": "string"
+                },
+                "locator": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "source_id",
+                "locator"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "text",
+          "execution_state",
+          "references"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "preserved_review_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "review_required": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "pipeline_version",
+    "case_id",
+    "story",
+    "evidence_version",
+    "paragraphs",
+    "open_questions",
+    "dm_drafts",
+    "proposed_checks",
+    "preserved_review_ids",
+    "review_required"
+  ],
+  "additionalProperties": false
+}

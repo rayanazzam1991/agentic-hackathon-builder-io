@@ -41,3 +41,8 @@ learnings.md
 .vercel/
 .agent-native/
 data/*.lock
+
+# Local browser captures and Python cache
+.playwright-cli/
+__pycache__/
+*.py[cod]
