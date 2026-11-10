@@ -18,7 +18,8 @@ import {
   parseSourceLinks,
   type LiveSourceInput,
 } from "./source-input";
-import { readStitchScreen } from "./stitch";
+import { storeStitchScreenshot } from "./screenshots";
+import { readStitchScreen, type StitchScreenSource } from "./stitch";
 
 const figma = createProviderApiRuntime({
   appId: "feature-coordinator",
@@ -32,6 +33,9 @@ import { unwrapProviderResult as unwrapMcp } from "./provider-result";
 export async function readLiveSources(
   input: z.infer<typeof LiveSourceInput>,
   context: ActionRunContext,
+  // Screenshot bytes are moved into private storage only after every selected
+  // source succeeded, so a failed import cannot leave an orphaned image.
+  storage?: { featureId: string; ownerEmail: string },
 ) {
   const links = parseSourceLinks(input);
   const designProvider = getDesignProvider(input);
@@ -103,10 +107,22 @@ export async function readLiveSources(
   const failures = results.flatMap((r, i) =>
     r.status === "rejected" ? [labels[i]] : [],
   );
-  if (failures.length)
+  if (failures.length) {
+    // Server-side diagnostics only: the client gets the safe aggregate below.
+    // Provider bodies and tokens never reach this log.
+    console.warn("[live-sources] source read failed", {
+      labels: results.map((result, index) => ({
+        source: labels[index],
+        status: result.status,
+        ...(result.status === "rejected"
+          ? { reason: result.reason instanceof Error ? result.reason.message : String(result.reason) }
+          : {}),
+      })),
+    });
     throw new Error(
       `${failures.join(", ")} could not be read. Check the app connection, source access, and token permissions; no review was created.`,
     );
+  }
   const values = results.map(
     (r) => (r as PromiseFulfilledResult<unknown>).value,
   );
@@ -192,6 +208,25 @@ export async function readLiveSources(
       scope:
         "Layer names and editable text in the selected node. Actual visibility, image pixels, comments and prototype interactions are not analysed.",
     });
+  }
+  if (designProvider === DesignProvider.STITCH) {
+    const stitchSource = sources[sources.length - 1] as StitchScreenSource;
+    if (!stitchSource.screenshotImage)
+      throw new Error(
+        "Stitch did not return a screenshot for the selected screen. No review was created.",
+      );
+    if (!storage)
+      throw new Error("Screenshot storage context is missing.");
+    stitchSource.screenshot = await storeStitchScreenshot({
+      featureId: storage.featureId,
+      ownerEmail: storage.ownerEmail,
+      capturedAt: stitchSource.screenshotImage.capturedAt,
+      projectId: stitchSource.screenshotImage.projectId,
+      screenId: stitchSource.screenshotImage.screenId,
+      title: stitchSource.screenshotImage.title,
+      bytes: stitchSource.screenshotImage.bytes,
+    });
+    delete stitchSource.screenshotImage;
   }
   return { title: String(fields.summary), sources };
 }

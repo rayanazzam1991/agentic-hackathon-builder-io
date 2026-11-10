@@ -1,5 +1,8 @@
 import { useT } from "@agent-native/core/client/i18n";
-import { DiscordDeliveryStatus } from "@shared/features/discord";
+import {
+  DiscordDeliveryStatus,
+  DiscordFollowUpStatus,
+} from "@shared/features/discord";
 import { getFeatureQuestions, isReviewInstruction } from "@shared/features/questions";
 import {
   AskReviewChange,
@@ -15,7 +18,7 @@ import {
   type FeatureQuestionView,
   type SuggestedQuestionChange,
 } from "@shared/features/types";
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -39,6 +42,12 @@ import {
   DiscordDirectory,
   type DirectoryChoice,
 } from "@/features/coordinator/DiscordDirectory";
+import {
+  DiscordFollowUpAddDialog,
+  DiscordFollowUpOptIn,
+  DiscordFollowUpState,
+  followUpPreview,
+} from "@/features/coordinator/DiscordFollowUp";
 
 const UNRESOLVED = "unresolved";
 const DIRECT = "direct";
@@ -54,8 +63,12 @@ interface Props {
   onEdit: (id: string, change: SuggestedQuestionChange) => Promise<void>;
   onReview: (id: string, change: AskReviewChangeInput) => Promise<void>;
   onDraft: (id: string) => Promise<unknown>;
-  onSend: (id: string) => Promise<unknown>;
+  onSend: (id: string, followUpHours?: number) => Promise<unknown>;
   onCheck: (id: string) => Promise<unknown>;
+  onCancelFollowUp: (id: string) => Promise<unknown>;
+  onRecheckFollowUp: (id: string) => Promise<unknown>;
+  onScheduleFollowUp: (id: string, hours: number) => Promise<unknown>;
+  onSyncReplies: () => Promise<unknown>;
   sending: boolean;
 }
 export function QuestionList({
@@ -66,6 +79,10 @@ export function QuestionList({
   onDraft,
   onSend,
   onCheck,
+  onCancelFollowUp,
+  onRecheckFollowUp,
+  onScheduleFollowUp,
+  onSyncReplies,
   sending,
 }: Props) {
   const t = useT();
@@ -74,19 +91,88 @@ export function QuestionList({
     (question) => question.id !== PrimaryQuestionId || !isReviewInstruction(feature.data),
   );
   const suggested = feature.data.questions?.length ?? 0;
+  const checkedAt = [
+    feature.data.discord?.checkedAt,
+    ...(feature.data.questions ?? []).map(
+      (question) => question.discord?.checkedAt ?? null,
+    ),
+  ]
+    .filter((value): value is string => !!value)
+    .sort();
+  const latestCheckedAt = checkedAt[checkedAt.length - 1];
+  const hasSent =
+    (!!feature.data.discord?.delivery &&
+      feature.data.discord.delivery.status !== DiscordDeliveryStatus.DRAFT) ||
+    (feature.data.questions ?? []).some(
+      (question) =>
+        !!question.discord?.delivery &&
+        question.discord.delivery.status !== DiscordDeliveryStatus.DRAFT,
+    );
+  const pendingRef = useRef(pending);
+  pendingRef.current = pending;
+  const syncRef = useRef(onSyncReplies);
+  syncRef.current = onSyncReplies;
+  const lastSyncRef = useRef(0);
+  useEffect(() => {
+    if (!feature.canEdit || !hasSent) return;
+    lastSyncRef.current = 0;
+    let cancelled = false;
+    const tick = () => {
+      if (cancelled || document.visibilityState !== "visible") return;
+      if (pendingRef.current) return;
+      if (Date.now() - lastSyncRef.current < 60_000) return;
+      lastSyncRef.current = Date.now();
+      void syncRef.current().catch(() => undefined);
+    };
+    const timer = window.setTimeout(tick, 800);
+    const interval = window.setInterval(tick, 60_000);
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") tick();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [feature.canEdit, feature.id, hasSent]);
   return (
     <section
       className="space-y-4 rounded-xl border border-border bg-card p-5"
       aria-labelledby={headingId}
     >
       <div>
-        <div className="flex flex-wrap items-baseline gap-3">
-          <h2 id={headingId} className="text-lg font-semibold">
-            {t("coordinator.questions.title")}
-          </h2>
-          <span className="text-xs text-muted-foreground">
-            {t("coordinator.questions.count", { count: String(suggested) })}
-          </span>
+        <div className="flex flex-wrap items-baseline justify-between gap-3">
+          <div className="flex flex-wrap items-baseline gap-3">
+            <h2 id={headingId} className="text-lg font-semibold">
+              {t("coordinator.questions.title")}
+            </h2>
+            <span className="text-xs text-muted-foreground">
+              {t("coordinator.questions.count", { count: String(suggested) })}
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {latestCheckedAt && (
+              <span className="text-xs text-muted-foreground">
+                {t("coordinator.questions.repliesUpdated", {
+                  time: new Date(latestCheckedAt).toLocaleString(),
+                })}
+              </span>
+            )}
+            {feature.canEdit && hasSent && (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={pending}
+                onClick={() => void onSyncReplies()}
+              >
+                {pending
+                  ? t("coordinator.questions.refreshingReplies")
+                  : t("coordinator.questions.refreshReplies")}
+              </Button>
+            )}
+          </div>
         </div>
         <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
           {t("coordinator.questions.help")}
@@ -114,6 +200,10 @@ export function QuestionList({
             onDraft={onDraft}
             onSend={onSend}
             onCheck={onCheck}
+            onCancelFollowUp={onCancelFollowUp}
+            onRecheckFollowUp={onRecheckFollowUp}
+            onScheduleFollowUp={onScheduleFollowUp}
+            onSyncReplies={onSyncReplies}
             sending={sending}
           />
         ))}
@@ -136,6 +226,9 @@ function QuestionCard({
   onDraft,
   onSend,
   onCheck,
+  onCancelFollowUp,
+  onRecheckFollowUp,
+  onScheduleFollowUp,
   sending,
 }: Props & { question: FeatureQuestionView }) {
   const t = useT();
@@ -143,11 +236,15 @@ function QuestionCard({
   const [editing, setEditing] = useState(false);
   const [notice, setNotice] = useState(false);
   const [confirm, setConfirm] = useState(false);
+  const [followUpEnabled, setFollowUpEnabled] = useState(false);
+  const [followUpHours, setFollowUpHours] = useState(1);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
   const [choose, setChoose] = useState(false);
   const binding = feature.data.discord;
   const dismissed =
     question.suggestion.status === QuestionSuggestionStatus.DISMISSED;
   const delivery = question.discord?.delivery ?? null;
+  const scan = question.discord;
   const frozen = !!delivery && delivery.status !== DiscordDeliveryStatus.DRAFT;
   const ask = question.askApproval;
   const rejected = ask.status === QuestionAskApproval.REJECTED;
@@ -180,10 +277,15 @@ function QuestionCard({
       // The workspace shows the error and reloads the latest revision.
     }
   }
+  function openSendDialog() {
+    setFollowUpEnabled(false);
+    setFollowUpHours(1);
+    setConfirm(true);
+  }
   async function askOnDiscord() {
     try {
       await onDraft(question.id);
-      setConfirm(true);
+      openSendDialog();
     } catch {
       // The workspace shows the error and reloads the latest revision.
     }
@@ -409,6 +511,16 @@ function QuestionCard({
                 })}
               </span>
             )}
+            {question.discord?.replies[0] && (
+              <span className="mt-1 block text-xs text-muted-foreground">
+                {t("coordinator.discord.latestReply", {
+                  author: question.discord.replies[0].author,
+                  time: new Date(
+                    question.discord.replies[0].at,
+                  ).toLocaleString(),
+                })}
+              </span>
+            )}
           </dd>
         </div>
       </dl>
@@ -496,7 +608,7 @@ function QuestionCard({
                 <Button
                   size="sm"
                   disabled={pending || !canDraft}
-                  onClick={() => setConfirm(true)}
+                  onClick={openSendDialog}
                 >
                   {t("coordinator.questions.reviewSend")}
                 </Button>
@@ -525,7 +637,78 @@ function QuestionCard({
                   : t("coordinator.questions.checkReplies")}
               </Button>
             )}
+            {delivery.status === DiscordDeliveryStatus.SENT &&
+              (delivery.recipientRole || delivery.recipientPerson) &&
+              (!question.discord?.followUp ||
+                question.discord.followUp.status ===
+                  DiscordFollowUpStatus.CANCELLED ||
+                question.discord.followUp.status ===
+                  DiscordFollowUpStatus.FAILED) &&
+              feature.canApprove && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={pending}
+                  onClick={() => setScheduleOpen(true)}
+                >
+                  {t("coordinator.discord.followUp.add")}
+                </Button>
+              )}
           </div>
+          {question.discord?.followUp && (
+            <DiscordFollowUpState
+              followUp={question.discord.followUp}
+              channelUrl={channelUrl}
+              pending={pending}
+              onCancel={() => onCancelFollowUp(question.id)}
+              onRecheck={() => onRecheckFollowUp(question.id)}
+            />
+          )}
+          {scan?.checkedAt && (
+            <div className="space-y-2 border-t border-border pt-3">
+              <p role="status" className="text-xs text-muted-foreground">
+                {t("coordinator.discord.coverage")}{" "}
+                {new Date(scan.checkedAt).toLocaleString()}
+              </p>
+              {scan.partial && (
+                <p
+                  role="status"
+                  className="text-xs text-amber-700 dark:text-amber-400"
+                >
+                  {t("coordinator.discord.partial")}
+                </p>
+              )}
+              {scan.replies.length ? (
+                <ul className="space-y-3">
+                  {scan.replies.map((reply) => (
+                    <li
+                      key={reply.id}
+                      className="space-y-1 border-s-2 border-border ps-3"
+                    >
+                      <a
+                        className="break-all text-xs underline"
+                        href={reply.url}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {reply.author} · {new Date(reply.at).toLocaleString()}
+                      </a>
+                      <p className="whitespace-pre-wrap text-sm leading-6">
+                        {reply.text}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  {t("coordinator.discord.empty")}
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                {t("coordinator.discord.identity")}
+              </p>
+            </div>
+          )}
         </div>
       )}
       {canDraft && !delivery && (
@@ -566,6 +749,18 @@ function QuestionCard({
           />
         </DialogContent>
       </Dialog>
+      {delivery && (
+        <DiscordFollowUpAddDialog
+          open={scheduleOpen}
+          onOpenChange={setScheduleOpen}
+          onSchedule={(hours) => onScheduleFollowUp(question.id, hours)}
+          pending={pending}
+          featureId={feature.id}
+          questionId={question.id}
+          recipient={delivery}
+          channelName={binding?.channelName ?? ""}
+        />
+      )}
       <Dialog
         open={confirm}
         onOpenChange={(value) => {
@@ -602,6 +797,24 @@ function QuestionCard({
           <p className="max-h-64 overflow-y-auto whitespace-pre-wrap break-words text-sm leading-6">
             {delivery?.content}
           </p>
+          {delivery &&
+            (delivery.recipientRole || delivery.recipientPerson) && (
+            <DiscordFollowUpOptIn
+              enabled={followUpEnabled}
+              onEnabledChange={setFollowUpEnabled}
+              hours={followUpHours}
+              onHoursChange={setFollowUpHours}
+              recipientLabel={
+                delivery.recipientPerson
+                  ? t("coordinator.questions.recipientPerson", {
+                      name: delivery.recipientPerson.displayName,
+                    })
+                  : `@${delivery.recipientRole?.name ?? ""}`
+              }
+              channelName={binding?.channelName ?? ""}
+              content={followUpPreview(feature.id, question.id, delivery)}
+            />
+          )}
           <DialogFooter>
             <Button
               variant="outline"
@@ -613,9 +826,12 @@ function QuestionCard({
             <Button
               disabled={sending}
               onClick={() =>
-                void run(() => onSend(question.id)).then(() =>
-                  setConfirm(false),
-                )
+                void run(() =>
+                  onSend(
+                    question.id,
+                    followUpEnabled ? followUpHours : undefined,
+                  ),
+                ).then(() => setConfirm(false))
               }
             >
               {sending

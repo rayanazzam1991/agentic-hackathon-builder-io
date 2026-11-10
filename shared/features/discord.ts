@@ -8,6 +8,32 @@ export const DiscordDeliveryStatus = {
 } as const;
 export type DiscordDeliveryStatus =
   (typeof DiscordDeliveryStatus)[keyof typeof DiscordDeliveryStatus];
+// One opt-in automatic follow-up per sent question. `sending` is a durable
+// claim: only the worker that wrote it may POST. `uncertain` and `unverified`
+// are deliberately terminal for automatic sends; a person must inspect them.
+export const DiscordFollowUpStatus = {
+  SCHEDULED: "scheduled",
+  SENDING: "sending",
+  SENT: "sent",
+  ANSWERED: "answered",
+  CANCELLED: "cancelled",
+  FAILED: "failed",
+  UNCERTAIN: "uncertain",
+  UNVERIFIED: "unverified",
+} as const;
+export type DiscordFollowUpStatus =
+  (typeof DiscordFollowUpStatus)[keyof typeof DiscordFollowUpStatus];
+export const DiscordFollowUpDelayHours = [1, 2, 3] as const;
+export const DiscordFollowUpContentLimit = 2000;
+// Deterministic so the owner can review the exact text before the original
+// send. The message_reference is what ties it to the original question.
+export function discordFollowUpContent(
+  mention: string,
+  featureId: string,
+  questionId: string,
+) {
+  return `${mention} Following up on the question above — have you had a chance to respond? No action is needed if you have already replied.\n\nFeature Coordinator follow-up reference: ${featureId}/${questionId}`;
+}
 export const DiscordChange = {
   CONNECT: "connect",
   DRAFT: "draft",
@@ -98,12 +124,53 @@ export const DiscordDeliverySchema = z.object({
   requestedAt: z.string().nullable(),
   messageId: DiscordSnowflake.nullable(),
 });
+export const DiscordFollowUpSchema = z
+  .object({
+    status: z.enum(DiscordFollowUpStatus),
+    hours: z.number().int().min(1).max(24),
+    nonce: z.string().min(1).max(25),
+    dueAt: z.string(),
+    createdAt: z.string(),
+    createdBy: z.string(),
+    content: z.string().max(DiscordFollowUpContentLimit),
+    // Snapshot of the approved question, recipient and original message. Any
+    // later divergence cancels the schedule instead of retargeting it.
+    questionText: z.string().max(4000),
+    guildId: DiscordSnowflake,
+    channelId: DiscordSnowflake,
+    messageId: DiscordSnowflake,
+    // Used only to bound the reply scan; null when the platform did not return
+    // the original message timestamp.
+    messageAt: z.string().nullable().default(null),
+    recipientRole: DiscordRoleSchema.optional(),
+    recipientPerson: DiscordPersonSchema.optional(),
+    claimedAt: z.string().nullable().default(null),
+    claimExpiresAt: z.string().nullable().default(null),
+    attempts: z.number().int().min(0).default(0),
+    lastCheckedAt: z.string().nullable().default(null),
+    followUpMessageId: DiscordSnowflake.nullable().default(null),
+    sentAt: z.string().nullable().default(null),
+    stoppedAt: z.string().nullable().default(null),
+    answeredBy: z.string().nullable().default(null),
+    answeredAt: z.string().nullable().default(null),
+    replyId: DiscordSnowflake.nullable().default(null),
+    lastError: z.string().max(500).nullable().default(null),
+    reason: z.string().max(500).nullable().default(null),
+  })
+  .refine(
+    (value) =>
+      Number(!!value.recipientRole) + Number(!!value.recipientPerson) === 1,
+    { message: "A follow-up must snapshot exactly one recipient." },
+  );
+export type DiscordFollowUp = z.infer<typeof DiscordFollowUpSchema>;
+export type DiscordDelivery = z.infer<typeof DiscordDeliverySchema>;
 // Message-level state shared by the legacy feature thread and each question.
 export const DiscordThreadStateSchema = z.object({
   delivery: DiscordDeliverySchema.nullable(),
   replies: z.array(DiscordReplySchema).max(100),
   checkedAt: z.string().nullable(),
   partial: z.boolean(),
+  followUp: DiscordFollowUpSchema.nullable().optional(),
 });
 export type DiscordThreadState = z.infer<typeof DiscordThreadStateSchema>;
 export const FeatureDiscordSchema = DiscordThreadStateSchema.extend({

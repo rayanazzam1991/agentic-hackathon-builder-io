@@ -600,3 +600,26 @@ describe("individual recipients", () => {
     expect(question("q-a").discord!.delivery!.recipientPerson).toEqual(dana);
   });
 });
+
+describe("opt-in follow-up schedule", () => {
+  it("schedules one follow-up only after the send is confirmed, without another POST", async () => {
+    await draft("q-a");
+    const result = await sendDiscordQuestion(
+      "feature-test",
+      feature().revision,
+      "q-a",
+      2,
+    );
+    expect(result.changed).toBe(true);
+    const scheduled = question("q-a").discord!.followUp!;
+    expect(scheduled.status).toBe("scheduled");
+    expect(scheduled.hours).toBe(2);
+    expect(
+      Date.parse(scheduled.dueAt) - Date.parse(scheduled.createdAt),
+    ).toBe(2 * 60 * 60 * 1000);
+    expect(scheduled.messageId).toBe(mock.posted[0]!.id);
+    expect(Number.isNaN(Date.parse(scheduled.messageAt!))).toBe(false);
+    expect(scheduled.content).toContain(`<@&${poRole}>`);
+    expect(sends()).toHaveLength(1);
+  });
+});

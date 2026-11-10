@@ -13,9 +13,9 @@ Open the loopback URL printed by the server (currently http://127.0.0.1:8080/), 
 
 Run only one dev server for this checkout. Vite also defaults to IPv4 loopback and refuses an occupied port, so a second invocation cannot silently start on another port or IPv6. If `localhost:8080` shows `socket hang up` while `127.0.0.1:8080` works, check for an older IPv6 listener, stop the duplicate server, and use the loopback URL above.
 
-The launcher prefers the CLI bundled in `/Applications/Codex.app` on macOS, otherwise it uses `codex` on PATH. Use `codex login` with the selected CLI if it is not already signed in. Credentials remain managed by Codex; the app does not copy tokens or require Jev/OpenAI API keys for this local chat path. Codex remains a hosted model service using the host account's access and limits, not offline inference.
+The launcher prefers the CLI bundled in `/Applications/ChatGPT.app` or `/Applications/Codex.app` on macOS, otherwise it uses `codex` on PATH. Use `codex login` with the selected CLI if it is not already signed in. Credentials remain managed by Codex; the app does not copy tokens or require Jev/OpenAI API keys for this local chat path. Codex remains a hosted model service using the host account's access and limits, not offline inference.
 
-The model is defined once as `LocalCodex.MODEL` in `feature-coordinator/shared/local-codex.ts`. This machine was verified with the desktop CLI 0.166.0-alpha.5.1 and `gpt-6.1-sol`. Homebrew CLI 0.143.0 could not parse the desktop model cache and rejected the model. No global CLI install or login was changed.
+The model is defined once as `LocalCodex.MODEL` in `shared/local-codex.ts`. The current setting is `gpt-6.1-terra` with low reasoning. Homebrew CLI 0.143.0 rejected the model; the ChatGPT desktop CLI 0.167.0-alpha.3.2 completed a direct Terra request. No global CLI install or login was changed.
 
 ## Boundaries
 
@@ -47,7 +47,7 @@ The feature review slice now adds a bounded local action protocol over the nativ
 
 ## Local launcher correction — November 5, 2026
 
-The app retains `gpt-6.1-sol` with light thinking (`low`). A direct desktop CLI 0.166.0-alpha.6 check succeeded with that exact combination. Earlier native run logs returned `model_not_found`; this was masked by a generic login suggestion. Restart with `pnpm dev:local` after changing the launcher so the running server picks up its PATH.
+At that time the app used `gpt-6.1-sol` with light thinking (`low`), and a direct desktop CLI 0.166.0-alpha.6 check succeeded. The current model and launcher selection are documented above. Restart with `pnpm dev:local` after changing the launcher so the running server picks up its PATH.
 
 Core 0.223 accepts `reasoningEffort` but does not forward it in the Codex subprocess arguments. The app-owned executable shim at `scripts/local-codex-bin/codex` adds `model_reasoning_effort="low"`, using the shared local policy, and delegates to the desktop CLI selected by `scripts/dev-local.mjs`. It preserves stdin/stdout, exit status and cancellation signals. No framework package or global Codex configuration is patched. The executable-path environment variable contains no credential. Production still uses its normal transport.
 

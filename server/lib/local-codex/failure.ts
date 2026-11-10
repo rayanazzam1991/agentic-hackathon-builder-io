@@ -1,3 +1,5 @@
+import { LocalCodex } from "@shared/local-codex";
+
 // Classify known CLI failures; never forward arbitrary stderr or provider payloads.
 export function localCodexFailureMessage(
   events: ReadonlyArray<{
@@ -14,7 +16,7 @@ export function localCodexFailureMessage(
     .map((event) => event.message)
     .join("\n");
   if (/model_not_found|model is not supported/i.test(errors))
-    return "Your local Codex CLI rejected gpt-6.1-sol. Restart with pnpm dev:local to use the selected desktop CLI. No production provider was called.";
+    return `Your Codex account or CLI does not support ${LocalCodex.MODEL}. Check model access and the selected CLI before retrying. No production provider was called.`;
   if (/usage limit|rate.limit|quota/i.test(errors))
     return "Your Codex account reached its usage limit. Check Codex usage before retrying. No production provider was called.";
   if (/unauthorized|authentication|not logged in|invalid.*token/i.test(errors))

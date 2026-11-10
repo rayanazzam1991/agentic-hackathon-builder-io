@@ -9,7 +9,7 @@ describe("safe local failure reporting", () => {
   it("reports model rejection separately from login failures", () => {
     expect(
       localCodexFailureMessage([event("model_not_found private-secret")]),
-    ).toContain("rejected gpt-6.1-sol");
+    ).toContain("does not support gpt-6.1-terra");
     expect(
       localCodexFailureMessage([event("model_not_found private-secret")]),
     ).not.toContain("private-secret");

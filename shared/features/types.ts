@@ -222,6 +222,33 @@ export type FeatureQuestionView = Omit<FeatureQuestionItem, "owner"> & {
   owner: FeatureParticipant | null;
 };
 
+// Import-time screenshot of the selected Stitch screen. Only the opaque storage
+// handle and descriptive metadata are persisted; image bytes live in private
+// application blob storage and are read through feature access checks.
+export const MaxScreenshotBytes = 1024 * 1024;
+export const ScreenshotMediaTypes = [
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+] as const;
+export const FeatureScreenshotSchema = z.object({
+  storage: z.object({
+    // Opaque provider handle. The encrypted fallback handle can be long.
+    id: z.string().min(1).max(6000),
+    provider: z.string().min(1).max(200),
+    encrypted: z.boolean(),
+    mimeType: z.enum(ScreenshotMediaTypes),
+    size: z.number().int().positive().max(MaxScreenshotBytes),
+    createdAt: z.string().optional(),
+  }),
+  capturedAt: z.string(),
+  label: z.string().min(1).max(200),
+  projectId: z.string().max(100).optional(),
+  screenId: z.string().max(100).optional(),
+  scope: z.string().min(1).max(600),
+});
+export type FeatureScreenshot = z.infer<typeof FeatureScreenshotSchema>;
+
 export const FeatureDataSchema = z.object({
   discord: FeatureDiscordSchema.optional(),
   sample: z.boolean(),
@@ -234,6 +261,7 @@ export const FeatureDataSchema = z.object({
         url: z.string().url().optional(),
         capturedAt: z.string().optional(),
         scope: z.string().optional(),
+        screenshot: FeatureScreenshotSchema.optional(),
       }),
     )
     .min(2)
@@ -281,6 +309,18 @@ export const FeatureSchema = z.object({
   canApprove: z.boolean(),
 });
 export type Feature = z.infer<typeof FeatureSchema>;
+// get-feature attaches the stored Stitch screenshot as a vision image. The
+// framework lifts `_agentImages` out of the tool result before the model reads
+// the JSON, so it must stay declared here or output validation strips it.
+export const AgentImageSchema = z.object({
+  data: z.string().min(1),
+  mediaType: z.enum(ScreenshotMediaTypes),
+  label: z.string().min(1).max(200).optional(),
+});
+export const FeatureWithImagesSchema = FeatureSchema.extend({
+  _agentImages: z.array(AgentImageSchema).max(1).optional(),
+});
+export type FeatureWithImages = z.infer<typeof FeatureWithImagesSchema>;
 export const RevisionInput = z.object({
   id: z.string().min(1).max(200).describe("Feature ID from get-feature."),
   revision: z
@@ -305,6 +345,19 @@ export const DiscordQuestionInput = RevisionInput.extend({
     .describe(
       "Suggested question id. Omit for the primary question's Discord thread.",
     ),
+});
+// Optional one-time follow-up, enabled by the owner in the send dialog.
+export const DiscordSendInput = DiscordQuestionInput.extend({
+  followUpHours: z
+    .number()
+    .int()
+    .min(1)
+    .max(24)
+    .optional()
+    .describe("Opt-in delay in hours for one automatic follow-up."),
+});
+export const DiscordFollowUpInput = DiscordQuestionInput.extend({
+  hours: z.number().int().min(1).max(24),
 });
 export const QuestionChangeSchema = z.discriminatedUnion("event", [
   z.object({

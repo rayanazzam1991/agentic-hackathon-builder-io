@@ -22,10 +22,18 @@ import {
   assertStitchAssetUrl,
   extractStitchText,
   listStitchDesigns,
+  decodeStitchScreenshot,
   readStitchScreen,
   stitchReader,
 } from "./stitch";
 const name = "projects/123/screens/screen1";
+// 1x1 transparent PNG.
+const png = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+  "base64",
+);
+const htmlAsset = "https://stitch.googleapis.com/asset";
+const thumbAsset = "https://lh3.googleusercontent.com/thumb";
 const envelope = (value: unknown) => ({
   content: [{ type: "text", text: JSON.stringify(value) }],
 });
@@ -45,13 +53,16 @@ beforeEach(() => {
     envelope({
       name,
       title: "Eligible",
-      htmlCode: { downloadUrl: "https://stitch.googleapis.com/asset" },
+      htmlCode: { downloadUrl: htmlAsset },
+      thumbnailScreenshot: { downloadUrl: thumbAsset },
     }),
   );
-  mock.fetch.mockResolvedValue(
-    new Response(
-      "<html><body><h1>Order</h1><p>48 hours</p><script>sendSecret()</script></body></html>",
-    ),
+  mock.fetch.mockImplementation(async (url: string) =>
+    url === thumbAsset
+      ? new Response(png)
+      : new Response(
+          "<html><body><h1>Order</h1><p>48 hours</p><script>sendSecret()</script></body></html>",
+        ),
   );
 });
 describe("Stitch selected-screen reads", () => {
@@ -98,6 +109,8 @@ describe("Stitch selected-screen reads", () => {
     expect(result.kind).toBe("stitch");
     expect(result.excerpt).toContain("48 hours");
     expect(result.excerpt).not.toContain("sendSecret");
+    expect(Buffer.from(result.screenshotImage!.bytes).equals(png)).toBe(true);
+    expect(result.screenshotImage?.screenId).toBe("screen1");
     const options = mock.fetch.mock.calls[0]?.[1];
     expect(options).not.toHaveProperty("headers");
     expect(mock.fetch.mock.calls[0]?.[2]).toMatchObject({
@@ -133,10 +146,12 @@ describe("Stitch selected-screen reads", () => {
       envelope({
         name,
         htmlCode: { downloadUrl: "https://lh3.googleusercontent.com/asset" },
+        thumbnailScreenshot: { downloadUrl: thumbAsset },
       }),
     );
     await readStitchScreen("123", "screen1", { caller: "frontend" });
     expect(mock.fetch.mock.calls[0]?.[1]).not.toHaveProperty("headers");
+    expect(mock.fetch.mock.calls[1]?.[1]).not.toHaveProperty("headers");
   });
   it("rejects mismatched screens before downloading", async () => {
     mock.call.mockResolvedValue(
@@ -160,10 +175,31 @@ describe("Stitch selected-screen reads", () => {
     expect(() => assertStitchAssetUrl(url)).toThrow(),
   );
   it("rejects oversized HTML without saving partial text", async () => {
-    mock.fetch.mockResolvedValue(new Response("x".repeat(1024 * 1024 + 1)));
+    mock.fetch.mockImplementation(async (url: string) =>
+      url === thumbAsset
+        ? new Response(png)
+        : new Response("x".repeat(1024 * 1024 + 1)),
+    );
     await expect(
       readStitchScreen("123", "screen1", { caller: "frontend" }),
     ).rejects.toThrow("exceeds");
+  });
+  it("decodes Google's base64 screenshot envelope", () => {
+    const envelope = JSON.stringify({
+      imageMetadata: { mimeType: "image/png" },
+      dataString: png.toString("base64"),
+    });
+    expect(Buffer.from(decodeStitchScreenshot(Buffer.from(envelope))).equals(png)).toBe(true);
+    expect(Buffer.from(decodeStitchScreenshot(png)).equals(png)).toBe(true);
+  });
+  it("rejects a screen without a screenshot instead of saving text as success", async () => {
+    mock.call.mockResolvedValue(
+      envelope({ name, htmlCode: { downloadUrl: htmlAsset } }),
+    );
+    await expect(
+      readStitchScreen("123", "screen1", { caller: "frontend" }),
+    ).rejects.toThrow("no screenshot");
+    expect(mock.fetch).not.toHaveBeenCalled();
   });
   it("projects only IDs and titles, never signed download links", async () => {
     mock.call.mockResolvedValue(

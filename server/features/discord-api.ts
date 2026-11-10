@@ -53,7 +53,7 @@ export async function discordApi() {
   return async (path: string, body?: unknown) => {
     // Paths are constructed only by this adapter's validated-ID callers.
     if (
-      !/^\/(?:users\/@me|guilds\/\d{17,20}(?:\/(?:roles|members\/\d{17,20}))?|guilds\/\d{17,20}\/members\?limit=500(?:&after=\d{17,20})?|channels\/\d{17,20}(?:\/messages(?:\/\d{17,20})?)?)(?:\?limit=100)?$/.test(
+      !/^\/(?:users\/@me|guilds\/\d{17,20}(?:\/(?:roles|members\/\d{17,20}))?|guilds\/\d{17,20}\/members\?limit=500(?:&after=\d{17,20})?|channels\/\d{17,20}(?:\/messages(?:\/\d{17,20})?)?)(?:\?limit=100(?:&before=\d{17,20})?)?$/.test(
         path,
       )
     )

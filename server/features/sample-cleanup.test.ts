@@ -21,7 +21,7 @@ import cleanup from "../../actions/delete-sample-features";
 const client = new PGlite();
 beforeAll(async () => {
   await client.exec(
-    `CREATE TABLE coordination_features (id text primary key,title text not null,status text not null,revision integer not null,data jsonb not null,owner_email text not null,org_id text,visibility text not null); CREATE TABLE coordination_feature_shares (id text primary key,resource_id text not null,principal_type text,principal_id text,role text,created_by text,created_at text,notified_at text);`,
+    `CREATE TABLE coordination_features (id text primary key,title text not null,status text not null,feature_status text not null default 'not_started',revision integer not null,data jsonb not null,owner_email text not null,org_id text,visibility text not null); CREATE TABLE coordination_feature_shares (id text primary key,resource_id text not null,principal_type text,principal_id text,role text,created_by text,created_at text,notified_at text);`,
   );
   const db = drizzle(client, { schema });
   state.db = db;

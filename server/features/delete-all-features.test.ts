@@ -17,6 +17,12 @@ vi.mock("@agent-native/core/sharing", () => ({
       eq(table.orgId, "workspace-test"),
     ),
 }));
+import {
+  registerPrivateBlobProvider,
+  unregisterPrivateBlobProvider,
+} from "@agent-native/core/private-blob";
+import type { PrivateBlobHandle } from "@agent-native/core/private-blob";
+
 import removeAll from "../../actions/delete-all-features";
 
 const row = (id: string, data = {}) => ({
@@ -34,7 +40,7 @@ let db: ReturnType<typeof drizzle<typeof schema>>;
 beforeEach(async () => {
   const client = new PGlite();
   await client.exec(
-    `CREATE TABLE coordination_features (id text primary key,title text not null,status text not null,revision integer not null,data jsonb not null,owner_email text not null,org_id text,visibility text not null); CREATE TABLE coordination_feature_shares (id text primary key,resource_id text not null,principal_type text,principal_id text,role text,created_by text,created_at text,notified_at text);`,
+    `CREATE TABLE coordination_features (id text primary key,title text not null,status text not null,feature_status text not null default 'not_started',revision integer not null,data jsonb not null,owner_email text not null,org_id text,visibility text not null); CREATE TABLE coordination_feature_shares (id text primary key,resource_id text not null,principal_type text,principal_id text,role text,created_by text,created_at text,notified_at text);`,
   );
   db = drizzle(client, { schema });
   state.db = db;
@@ -84,6 +90,61 @@ it("deletes nothing on a count mismatch", async () => {
   await expect(run({ dryRun: false, expectedCount: 1 })).rejects.toThrow();
   await expect(run({ dryRun: false })).rejects.toThrow();
   expect(await ids()).toHaveLength(4);
+});
+
+it("removes stored screenshots before bulk deletion", async () => {
+  const deleted: string[] = [];
+  const providerId = "bulk-delete-test";
+  registerPrivateBlobProvider({
+    id: providerId,
+    name: "Test",
+    isConfigured: () => true,
+    put: async () => {
+      throw new Error("unused");
+    },
+    read: async (handle: PrivateBlobHandle) => {
+      throw new Error("unused");
+    },
+    delete: async (handle: PrivateBlobHandle) => {
+      deleted.push(handle.id);
+      return { deleted: true, provider: providerId };
+    },
+  });
+  await db
+    .update(schema.features)
+    .set({
+      data: {
+        sources: [
+          {
+            kind: "stitch",
+            version: "v1",
+            excerpt: "text",
+            screenshot: {
+              storage: {
+                id: "blob-a",
+                provider: providerId,
+                encrypted: false,
+                mimeType: "image/png",
+                size: 10,
+              },
+              capturedAt: "2026-11-08T10:00:00.000Z",
+              label: "Eligible",
+              scope: "snapshot",
+            },
+          },
+        ],
+      } as never,
+    })
+    .where(
+      and(
+        eq(schema.features.id, "a"),
+        eq(schema.features.ownerEmail, "owner@example.test"),
+      ),
+    );
+  const result = await run({ dryRun: false, expectedCount: 2 });
+  expect(result.remaining).toBe(0);
+  expect(deleted).toEqual(["blob-a"]);
+  unregisterPrivateBlobProvider(providerId);
 });
 
 it("rejects non-frontend callers", async () => {

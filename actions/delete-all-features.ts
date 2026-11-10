@@ -6,6 +6,7 @@ import { z } from "zod";
 import { getDb, schema } from "../server/db";
 import { featureErrors } from "../server/features/errors";
 import { featureListLink } from "../server/features/links";
+import { removeFeatureScreenshots } from "../server/features/screenshots";
 import { requireActor } from "../server/features/store";
 
 export default defineAction({
@@ -65,13 +66,22 @@ export default defineAction({
       ).map(({ id, title, data }) => ({
         id,
         title,
+        data,
         hasDiscordHistory: !!data.discord?.delivery,
+      }));
+    // The public result never carries the aggregate; `data.sources` is used only
+    // to locate stored screenshots for cleanup.
+    const visible = (reviews: Awaited<ReturnType<typeof select>>) =>
+      reviews.map(({ id, title, hasDiscordHistory }) => ({
+        id,
+        title,
+        hasDiscordHistory,
       }));
     const db = getDb();
     if (dryRun) {
       const reviews = await select(db);
       return {
-        reviews,
+        reviews: visible(reviews),
         remaining: reviews.length,
         _receipt: {
           changed: false,
@@ -87,6 +97,25 @@ export default defineAction({
         "human_approval_required",
         { statusCode: 403 },
       );
+    // Check the previewed count and remove image bytes before touching rows.
+    // A failed cleanup returns an error and leaves every review intact; retrying
+    // is safe because deleting a missing blob is treated as success.
+    const previewRows = await select(db);
+    if (expectedCount !== previewRows.length)
+      throw featureErrors.noWrite(
+        "The reviews changed since the preview. Review the list and try again.",
+        "stale_revision",
+        { statusCode: 409 },
+      );
+    try {
+      await removeFeatureScreenshots(previewRows.map((row) => row.data.sources));
+    } catch {
+      throw featureErrors.noWrite(
+        "The stored screenshots could not be removed. No reviews were deleted; retry.",
+        "screenshot_cleanup_failed",
+        { statusCode: 503 },
+      );
+    }
     return db.transaction(async (tx) => {
       const reviews = await select(tx as unknown as typeof db);
       if (expectedCount !== reviews.length)
@@ -106,7 +135,7 @@ export default defineAction({
       }
       const remaining = (await select(tx as unknown as typeof db)).length;
       return {
-        reviews,
+        reviews: visible(reviews),
         remaining,
         _receipt: {
           changed: ids.length > 0,

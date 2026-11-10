@@ -1,7 +1,7 @@
 import { defineAction, isActionContractError } from "@agent-native/core/action";
 import { DiscordDeliveryStatus } from "@shared/features/discord";
 import {
-  DiscordQuestionInput,
+  DiscordSendInput,
   FeatureWriteSchema,
   PrimaryQuestionId,
 } from "@shared/features/types";
@@ -16,12 +16,12 @@ import { featureWriteReceipt } from "../server/features/receipt";
 export default defineAction({
   description:
     "Post the exact saved question (the primary one, or the suggested question named by questionId, from its reviewed draft) to its verified Discord channel only after human owner approval in the feature UI. Pending/uncertain deliveries cannot be reposted.",
-  schema: DiscordQuestionInput,
+  schema: DiscordSendInput,
   outputSchema: FeatureWriteSchema,
   errors: featureErrors,
   link: featureLink,
   needsApproval: true,
-  run: async ({ id, revision, questionId }, context) => {
+  run: async ({ id, revision, questionId, followUpHours }, context) => {
     if (context?.caller !== "frontend")
       throw featureErrors.noWrite(
         "Review and send this question from the feature screen.",
@@ -33,6 +33,7 @@ export default defineAction({
         id,
         revision,
         questionId,
+        followUpHours,
       );
       const thread =
         questionId && questionId !== PrimaryQuestionId

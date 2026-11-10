@@ -20,8 +20,6 @@ export const coordinatorMessages = {
       reject: "Reject",
       ownerOnly: "Only the feature owner can accept or reject proposals.",
     },
-    proposalsTitle: "Questions to review",
-    proposalsHelp: "Accepting adds a question for review. It does not approve asking or send a message.",
     origin: {
       source_question: "Posed by a source",
       agent_finding: "Agent finding",
@@ -92,6 +90,9 @@ export const coordinatorMessages = {
     refreshDraft: "Refresh draft",
     reviewSend: "Review and send…",
     checkReplies: "Check replies",
+    refreshReplies: "Refresh replies",
+    refreshingReplies: "Refreshing replies…",
+    repliesUpdated: "Replies updated {{time}}",
     checking: "Checking…",
     draftHeading: "Reviewed Discord message",
     draftChannel: "Channel",
@@ -174,6 +175,7 @@ export const coordinatorMessages = {
     reviewSend: "Review and send…",
     openMessage: "Open question in Discord",
     openReply: "Open recorded reply in Discord",
+    latestReply: "Latest reply from {{author}} · {{time}}",
     check: "Check replies",
     checking: "Checking replies…",
     coverage: "Latest 100 channel messages checked at",
@@ -195,6 +197,50 @@ export const coordinatorMessages = {
       uncertain:
         "Delivery unconfirmed · check replies to reconcile; do not resend",
     },
+    followUp: {
+      add: "Add automatic follow-up",
+      addTitle: "Add one automatic follow-up?",
+      addHelp:
+        "This question is already sent. Schedule one follow-up that posts automatically if no qualifying reply arrives.",
+      schedule: "Schedule follow-up",
+      scheduling: "Scheduling…",
+      enable: "Send one automatic follow-up if there is no reply",
+      help:
+        "After {{hours}} hour(s), one follow-up will post automatically in #{{channel}} and mention {{recipient}} only. It is skipped if a qualifying reply arrives first.",
+      delay: "Delay",
+      hours: "{{count}} hour(s)",
+      exactText: "Exact follow-up text",
+      warning:
+        "This is automatic. It does not record an answer or approve a decision, and it is sent at most once.",
+      scheduled: "Automatic follow-up scheduled for {{time}}",
+      scheduledHelp:
+        "It will be sent automatically unless {{recipient}} has replied. Cancel any time before it is sent.",
+      sending: "Sending the follow-up now…",
+      sent: "Follow-up sent {{time}}",
+      sentHelp:
+        "Replies arriving after this follow-up are not tracked automatically.",
+      answered: "Follow-up stopped: a qualifying reply arrived",
+      answeredHelp:
+        "{{author}} replied {{time}}. This does not record an answer or approve a decision.",
+      cancelled: "Follow-up cancelled",
+      cancelledHelp: "Nothing was sent. The question history is unchanged.",
+      failed: "Follow-up not sent",
+      failedHelp: "Discord did not send it. Nothing was posted.",
+      uncertain: "Follow-up delivery uncertain",
+      uncertainHelp:
+        "It may have been posted. Nothing will be reposted automatically; check the channel before acting.",
+      unverified: "Follow-up not sent automatically",
+      unverifiedHelp:
+        "The reply status could not be verified. Recheck when Discord is available; rechecking resumes automatic sending if no qualifying reply is found, or cancel the follow-up.",
+      recipient: "Recipient: {{recipient}}",
+      window: "{{hours}} hour(s) after the original send",
+      cancel: "Cancel follow-up",
+      cancelling: "Cancelling…",
+      recheck: "Recheck",
+      rechecking: "Rechecking…",
+      open: "Open follow-up in Discord",
+      original: "Open original message",
+    },
   },
   designProvider: "Design source",
   stitch: "Google Stitch",
@@ -212,7 +258,7 @@ export const coordinatorMessages = {
     "No design source was included in this review. Design contents have not been verified.",
   importTitle: "Review live sources",
   importHelp:
-    "Read the selected sources and save a new review. Existing reviews stay unchanged. Nothing is sent or published.",
+    "Read the selected sources and save a new review. Existing reviews stay unchanged. A Stitch import also stores a screenshot of the selected screen. Nothing is sent or published.",
   jiraUrl: "Jira story URL",
   jiraUrlPlaceholder: "https://your-site.atlassian.net/browse/PROJ-123",
   confluenceUrl: "Confluence page URL",
@@ -226,6 +272,20 @@ export const coordinatorMessages = {
     "Captured from connected providers. These snapshots do not automatically refresh. Import again for a new review of current sources. Discord questions require owner confirmation. Specification changes remain previews.",
   openSource: "Open source",
   captured: "Captured",
+  screenshotAlt: "Screenshot of {{label}} captured when the review was imported",
+  screenshotCaption: "Screenshot captured {{time}}",
+  screenshotScope:
+    "This is a snapshot of the selected screen at import time. It does not prove interactions, responsive behaviour, other screens, or the design's current state after import.",
+  screenshotUnavailable:
+    "No screenshot was stored for this screen (it was imported before screenshots were captured). The captured text below is still available.",
+  screenshotAgentLimit:
+    "Local Codex reviews cannot display images. The production agent receives this screenshot as an image.",
+  deleteFeature: "Delete review",
+  deleteFeatureTitle: "Delete this review?",
+  deleteFeatureHelp:
+    "This permanently deletes the review, its shares and its stored screenshot. Discord messages are not touched. This cannot be undone.",
+  deleting: "Deleting…",
+  deleteFailed: "The review could not be deleted. Nothing was removed; retry.",
   agentDeliveryFailed:
     "The agent did not accept this request. Your feature is saved; retry from the agent panel.",
   nav: "Features",
@@ -306,11 +366,12 @@ export const coordinatorMessages = {
   unpublished: "Preview only · not published to Confluence",
   activity: "Activity",
   ask: "Ask agent to review",
+  askStarting: "Starting review…",
   reviewMessage: "Review feature: {{title}}",
   proposalMessage: "Propose a decision for: {{title}}",
   previousReview: "Feature review (previous session)",
   askPrompt:
-    "Read this feature using get-feature. Compare the captured source evidence, cite source URLs and exact supporting text for any mismatch, distinguish facts from inferences, and identify the next question and owner. Do not assume a conflict exists. Report coverage limits. Propose each new evidence-backed question with propose-feature-questions, then call show-feature-questions so I can accept or reject the proposals in chat. Do not invent a reply, approve a decision, send messages or publish anything.",
+    "Review the whole feature in one pass now; do not wait for further instructions. Read this feature using get-feature. Cover every captured source, the screenshot if attached, the primary question, suggested questions and their ask/delivery state, pending proposals, role mappings, the specification preview and recent activity. Compare the captured source evidence, cite source URLs and exact supporting text for any mismatch, distinguish facts from inferences, and identify the next question and owner. If get-feature attaches a screenshot image, use it only for observations about that captured image; it does not prove interactions, responsive behaviour or later changes. Do not assume a conflict exists. Report coverage limits. Propose each new evidence-backed question with propose-feature-questions, then call show-feature-questions so I can accept or reject the proposals in chat. Do not invent a reply, approve a decision, send messages or publish anything.",
   draftProposalPrompt:
     "Read this feature using get-feature, then propose a specification paragraph based on the recorded reply using update-feature-question. Include the evidence in the rationale. Do not approve or publish.",
   askProposal: "Ask agent to propose",

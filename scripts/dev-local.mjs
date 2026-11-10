@@ -1,16 +1,11 @@
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
-import { dirname, delimiter, join } from "node:path";
+import { delimiter } from "node:path";
 import { fileURLToPath } from "node:url";
+import { selectCodexExecutable } from "./local-codex-executable.mjs";
 
 // Prefer the CLI shipped with Codex on macOS; an older Homebrew CLI may not
 // understand the desktop account's model catalog. Other hosts use PATH.
-const desktopCli =
-  "/Applications/Codex.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex";
-const cliDirectory =
-  process.platform === "darwin" && existsSync(desktopCli)
-    ? dirname(desktopCli)
-    : undefined;
 // guard:allow-env-credential — PATH is the host executable search path, not a credential; preserve it for local startup.
 const inheritedPath = process.env.PATH ?? "";
 // Atlassian MCP OAuth returns a long signed state in the callback URL. Node
@@ -21,23 +16,22 @@ const inheritedNodeOptions = process.env.NODE_OPTIONS ?? "";
 const shimDirectory = fileURLToPath(
   new URL("./local-codex-bin/", import.meta.url),
 );
-const executable = cliDirectory
-  ? desktopCli
-  : inheritedPath
-      .split(delimiter)
-      .filter((directory) => directory && directory !== shimDirectory)
-      .map((directory) => join(directory, "codex"))
-      .find(existsSync);
-if (!executable)
+// Load the app's local environment so explicit key material (for example
+// SECRETS_ENCRYPTION_KEY) reaches the dev server process, not just Vite's
+// client-side env.
+const appEnvPath = fileURLToPath(new URL("../.env", import.meta.url));
+if (existsSync(appEnvPath)) process.loadEnvFile(appEnvPath);
+const selection = selectCodexExecutable({ platform: process.platform, path: inheritedPath, shimDirectory });
+if (!selection)
   throw new Error("Install Codex CLI before starting the local agent.");
 const env = {
   ...process.env,
   NODE_OPTIONS: `${inheritedNodeOptions} --max-http-header-size=65536`.trim(),
-  FEATURE_COORDINATOR_CODEX_EXECUTABLE: executable,
+  FEATURE_COORDINATOR_CODEX_EXECUTABLE: selection.executable,
   PATH: `${shimDirectory}${delimiter}${inheritedPath}`,
 };
 console.log(
-  `Local agent: Codex CLI (${cliDirectory ? "desktop bundle" : "PATH"}); no production-provider fallback.`,
+  `Local agent: Codex CLI (${selection.source}); no production-provider fallback.`,
 );
 const child = spawn(
   "pnpm",

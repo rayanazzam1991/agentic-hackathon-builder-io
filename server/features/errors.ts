@@ -14,4 +14,5 @@ export const featureErrors = defineActionErrors(
   "suggestion_not_found",
   "proposal_not_found",
   "possible_duplicate",
+  "screenshot_cleanup_failed",
 );

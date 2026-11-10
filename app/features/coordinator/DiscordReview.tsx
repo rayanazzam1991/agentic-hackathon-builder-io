@@ -3,8 +3,12 @@ import {
   useActionMutation,
 } from "@agent-native/core/client/hooks";
 import { useT } from "@agent-native/core/client/i18n";
-import { DiscordChange, DiscordDeliveryStatus } from "@shared/features/discord";
-import { QuestionStatus, type Feature } from "@shared/features/types";
+import {
+  DiscordChange,
+  DiscordDeliveryStatus,
+  DiscordFollowUpStatus,
+} from "@shared/features/discord";
+import { PrimaryQuestionId, QuestionStatus, type Feature } from "@shared/features/types";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -20,6 +24,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { DiscordPeopleRoles } from "@/features/coordinator/DiscordPeopleRoles";
+import {
+  DiscordFollowUpAddDialog,
+  DiscordFollowUpOptIn,
+  DiscordFollowUpState,
+  followUpPreview,
+} from "@/features/coordinator/DiscordFollowUp";
 
 export function DiscordReview({
   feature,
@@ -32,9 +42,15 @@ export function DiscordReview({
   const update = useActionMutation("update-feature-discord");
   const send = useActionMutation("send-feature-discord-question");
   const check = useActionMutation("check-feature-discord-replies");
+  const scheduleFollowUp = useActionMutation("schedule-discord-followup");
+  const cancelFollowUp = useActionMutation("cancel-discord-followup");
+  const recheckFollowUp = useActionMutation("check-discord-followup");
   const apply = useActionMutation("apply-discord-setup");
   const [error, setError] = useState<string>();
   const [confirm, setConfirm] = useState(false);
+  const [followUpEnabled, setFollowUpEnabled] = useState(false);
+  const [followUpHours, setFollowUpHours] = useState(1);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
   const binding = feature.data.discord;
   const delivery = binding?.delivery;
   const [text, setText] = useState(
@@ -44,11 +60,23 @@ export function DiscordReview({
           "")
       : "",
   );
-  const pending = update.isPending || send.isPending || check.isPending || apply.isPending;
+  const pending =
+    update.isPending ||
+    send.isPending ||
+    check.isPending ||
+    apply.isPending ||
+    scheduleFollowUp.isPending ||
+    cancelFollowUp.isPending ||
+    recheckFollowUp.isPending;
   const draftable =
     feature.canApprove &&
     feature.status === QuestionStatus.OPEN &&
     (!delivery || delivery.status === DiscordDeliveryStatus.DRAFT);
+  function openSendDialog() {
+    setFollowUpEnabled(false);
+    setFollowUpHours(1);
+    setConfirm(true);
+  }
   async function run(work: () => Promise<unknown>) {
     setError(undefined);
     try {
@@ -181,6 +209,16 @@ export function DiscordReview({
               <p role="status" className="text-sm font-medium">
                 {t(`coordinator.discord.status.${delivery.status}`)}
               </p>
+              {binding.replies[0] && (
+                <p className="text-xs text-muted-foreground">
+                  {t("coordinator.discord.latestReply", {
+                    author: binding.replies[0].author,
+                    time: new Date(
+                      binding.replies[0].at,
+                    ).toLocaleString(),
+                  })}
+                </p>
+              )}
               {delivery.recipientRole && (
                 <p className="text-sm">
                   {t("coordinator.discord.recipient")}{" "}
@@ -203,7 +241,7 @@ export function DiscordReview({
               <div className="flex flex-wrap gap-3">
                 {draftable &&
                   delivery.status === DiscordDeliveryStatus.DRAFT && (
-                    <Button disabled={pending} onClick={() => setConfirm(true)}>
+                    <Button disabled={pending} onClick={openSendDialog}>
                       {t("coordinator.discord.reviewSend")}
                     </Button>
                   )}
@@ -226,7 +264,46 @@ export function DiscordReview({
                         : t("coordinator.discord.check")}
                     </Button>
                   )}
+                {delivery.status === DiscordDeliveryStatus.SENT &&
+                  (delivery.recipientRole || delivery.recipientPerson) &&
+                  (!binding?.followUp ||
+                    binding.followUp.status ===
+                      DiscordFollowUpStatus.CANCELLED ||
+                    binding.followUp.status ===
+                      DiscordFollowUpStatus.FAILED) &&
+                  feature.canApprove && (
+                    <Button
+                      variant="outline"
+                      disabled={pending}
+                      onClick={() => setScheduleOpen(true)}
+                    >
+                      {t("coordinator.discord.followUp.add")}
+                    </Button>
+                  )}
               </div>
+              {binding?.followUp && (
+                <DiscordFollowUpState
+                  followUp={binding.followUp}
+                  channelUrl={channelUrl}
+                  pending={pending}
+                  onCancel={() =>
+                    run(() =>
+                      cancelFollowUp.mutateAsync({
+                        id: feature.id,
+                        revision: feature.revision,
+                      }),
+                    )
+                  }
+                  onRecheck={() =>
+                    run(() =>
+                      recheckFollowUp.mutateAsync({
+                        id: feature.id,
+                        revision: feature.revision,
+                      }),
+                    )
+                  }
+                />
+              )}
             </div>
           )}
           {binding.checkedAt && (
@@ -292,6 +369,24 @@ export function DiscordReview({
           )}
         </>
       )}
+      {delivery && (
+        <DiscordFollowUpAddDialog
+          open={scheduleOpen}
+          onOpenChange={setScheduleOpen}
+          onSchedule={(hours) =>
+            scheduleFollowUp.mutateAsync({
+              id: feature.id,
+              revision: feature.revision,
+              hours,
+            })
+          }
+          pending={pending}
+          featureId={feature.id}
+          questionId={PrimaryQuestionId}
+          recipient={delivery}
+          channelName={binding?.channelName ?? ""}
+        />
+      )}
       <Dialog
         open={confirm}
         onOpenChange={(value) => {
@@ -322,6 +417,22 @@ export function DiscordReview({
           <p className="max-h-64 overflow-y-auto whitespace-pre-wrap break-words text-sm leading-6">
             {delivery?.content}
           </p>
+          {delivery &&
+            (delivery.recipientRole || delivery.recipientPerson) && (
+            <DiscordFollowUpOptIn
+              enabled={followUpEnabled}
+              onEnabledChange={setFollowUpEnabled}
+              hours={followUpHours}
+              onHoursChange={setFollowUpHours}
+              recipientLabel={`@${delivery.recipientRole?.name ?? ""}`}
+              channelName={binding?.channelName ?? ""}
+              content={followUpPreview(
+                feature.id,
+                PrimaryQuestionId,
+                delivery,
+              )}
+            />
+          )}
           <DialogFooter>
             <Button
               variant="outline"
@@ -337,6 +448,7 @@ export function DiscordReview({
                   send.mutateAsync({
                     id: feature.id,
                     revision: feature.revision,
+                    ...(followUpEnabled ? { followUpHours } : {}),
                   }),
                 )
               }

@@ -5,8 +5,17 @@ import { join, dirname, resolve } from "node:path";
 
 import { LocalCodex } from "@shared/local-codex";
 import { describe, it, expect } from "vitest";
+import { selectCodexExecutable } from "../../../scripts/local-codex-executable.mjs";
 
 describe("native CLI launch boundary", () => {
+  it("prefers the current desktop CLI over an older PATH installation", () => {
+    const chatgpt = "/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex";
+    const selection = selectCodexExecutable({
+      platform: "darwin", path: "/usr/local/bin", shimDirectory: "/shim",
+      exists: (path: string) => path === chatgpt || path === "/usr/local/bin/codex",
+    });
+    expect(selection).toEqual({ executable: chatgpt, source: "desktop bundle" });
+  });
   it("forwards stdin/model and pins low reasoning at the actual executable boundary", () => {
     const dir = mkdtempSync(join(tmpdir(), "coordinator-cli-test-"));
     try {
@@ -41,7 +50,7 @@ describe("native CLI launch boundary", () => {
         'model_reasoning_effort="low"',
         "exec",
         "--model",
-        "gpt-6.1-sol",
+        "gpt-6.1-terra",
       ]);
       writeFileSync(executable, "#!/usr/bin/env node\nprocess.exit(7);");
       const failed = spawnSync(

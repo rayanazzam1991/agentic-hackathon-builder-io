@@ -6,6 +6,7 @@ import { z } from "zod";
 import { getDb, schema } from "../server/db";
 import { featureErrors } from "../server/features/errors";
 import { featureListLink } from "../server/features/links";
+import { removeFeatureScreenshots } from "../server/features/screenshots";
 import { requireActor } from "../server/features/store";
 
 export default defineAction({
@@ -42,14 +43,20 @@ export default defineAction({
       sql<boolean>`${schema.features.data}->'sample' = 'true'::jsonb`,
     );
     const db = getDb();
-    if (dryRun) {
-      const reviews = await db
-        .select({ id: schema.features.id, title: schema.features.title })
+    const rows = () =>
+      db
+        .select({
+          id: schema.features.id,
+          title: schema.features.title,
+          data: schema.features.data,
+        })
         .from(schema.features)
         .where(filter);
+    if (dryRun) {
+      const samples = await rows();
       return {
-        reviews,
-        remainingSamples: reviews.length,
+        reviews: samples.map(({ id, title }) => ({ id, title })),
+        remainingSamples: samples.length,
         _receipt: {
           changed: false,
           verified: true,
@@ -57,6 +64,18 @@ export default defineAction({
           summary: "Preview only. No reviews deleted.",
         },
       };
+    }
+    const samples = await rows();
+    // Delete image bytes before rows. A cleanup failure changes nothing and is
+    // safe to retry; deleting an already-missing blob counts as success.
+    try {
+      await removeFeatureScreenshots(samples.map((row) => row.data.sources));
+    } catch {
+      throw featureErrors.noWrite(
+        "The stored screenshots could not be removed. No samples were deleted; retry.",
+        "screenshot_cleanup_failed",
+        { statusCode: 503 },
+      );
     }
     return db.transaction(async (tx) => {
       const reviews = await tx

@@ -1,4 +1,7 @@
-import { sendToAgentChatAndConfirm } from "@agent-native/core/client/agent-chat";
+import {
+  notifyChatThreadsUpdated,
+  sendToAgentChatAndConfirm,
+} from "@agent-native/core/client/agent-chat";
 import {
   actionErrorMessage,
   useActionMutation,
@@ -12,7 +15,6 @@ import {
   FeatureProgress,
   FeatureProgressEvent,
   QuestionStatus,
-  ProposalStatus,
   type QuestionChange,
 } from "@shared/features/types";
 import { LocalCodex } from "@shared/local-codex";
@@ -22,6 +24,7 @@ import {
   IconMessages,
   IconGitCompare,
   IconPlus,
+  IconTrash,
 } from "@tabler/icons-react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
@@ -33,7 +36,6 @@ import { FeatureStatus } from "@/features/coordinator/FeatureStatus";
 import { FeatureReviewSessions } from "@/features/coordinator/FeatureReviewSessions";
 import { LiveSourceImport } from "@/features/coordinator/LiveSourceImport";
 import { QuestionList } from "@/features/coordinator/QuestionList";
-import { Proposals } from "@/features/coordinator/QuestionChatCard";
 import { QuestionReview } from "@/features/coordinator/QuestionReview";
 import { RemoveAllFeatures } from "@/features/coordinator/RemoveAllFeatures";
 import { SourceEvidence } from "@/features/coordinator/SourceEvidence";
@@ -158,11 +160,13 @@ function FeatureList() {
 }
 function FeatureDetail({ id }: { id: string }) {
   const t = useT();
+  const navigate = useNavigate();
   const query = useActionQuery("get-feature", { id });
   const update = useActionMutation("update-feature-question");
   const approve = useActionMutation("approve-feature-decision");
   const progress = useActionMutation("update-feature-progress");
-  const createReviewSession = useActionMutation("create-feature-review-session");
+  const removeFeature = useActionMutation("delete-feature");
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [startingReview, setStartingReview] = useState(false);
   const [pageError, setError] = useState<string>();
   const questions = useQuestionActions(
@@ -212,15 +216,30 @@ function FeatureDetail({ id }: { id: string }) {
       throw e;
     }
   }
+  async function removeReview() {
+    setError(undefined);
+    try {
+      await removeFeature.mutateAsync({ id });
+      setConfirmDelete(false);
+      navigate(FeatureResource.PATH);
+    } catch (e) {
+      setError(actionErrorMessage(e) ?? t("coordinator.deleteFailed"));
+      setConfirmDelete(false);
+    }
+  }
   async function ask(propose = false) {
     setError(undefined);
     setStartingReview(true);
     try {
-      const { threadId } = await createReviewSession.mutateAsync({ id });
+      // The feature page's chat is already scoped to this feature, so a new
+      // chat created here is a durable review session. Letting the chat create
+      // and open the thread keeps the panel on the review instead of a blank
+      // tab, and the agent starts from the first submit.
       const delivery = await sendToAgentChatAndConfirm({
         chatTarget: "local",
         submit: true,
-        targetTabId: threadId,
+        newTab: true,
+        reuseEmptyTab: true,
         ...(LOCAL_CODEX_ENABLED
           ? { engine: LocalCodex.ENGINE, model: LocalCodex.MODEL }
           : {}),
@@ -233,7 +252,9 @@ function FeatureDetail({ id }: { id: string }) {
       if (!delivery.delivered) {
         console.warn("Feature agent handoff rejected", delivery.reason);
         setError(t("coordinator.agentDeliveryFailed"));
+        return;
       }
+      notifyChatThreadsUpdated();
     } catch (e) {
       setError(actionErrorMessage(e) ?? t("coordinator.error"));
     } finally {
@@ -284,10 +305,40 @@ function FeatureDetail({ id }: { id: string }) {
           />
           <Button variant="outline" disabled={startingReview} onClick={() => void ask()}>
             <IconMessages className="size-4" />
-            {t("coordinator.ask")}
+            {startingReview
+              ? t("coordinator.askStarting")
+              : t("coordinator.ask")}
           </Button>
+          {feature.canApprove && (
+            <Button
+              variant="outline"
+              disabled={removeFeature.isPending}
+              onClick={() => setConfirmDelete(true)}
+            >
+              <IconTrash className="size-4" aria-hidden="true" />
+              {t("coordinator.deleteFeature")}
+            </Button>
+          )}
         </div>
       </header>
+      <Dialog open={confirmDelete} onOpenChange={(open) => {
+        if (!removeFeature.isPending) setConfirmDelete(open);
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("coordinator.deleteFeatureTitle")}</DialogTitle>
+            <DialogDescription>{t("coordinator.deleteFeatureHelp")}</DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button variant="outline" disabled={removeFeature.isPending} onClick={() => setConfirmDelete(false)}>
+              {t("coordinator.cancel")}
+            </Button>
+            <Button variant="destructive" disabled={removeFeature.isPending} onClick={() => void removeReview()}>
+              {removeFeature.isPending ? t("coordinator.deleting") : t("coordinator.deleteFeature")}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       {!isReviewInstruction(feature.data) && <div className="flex items-center gap-2 text-sm"><span>{t("coordinator.questionStatus")}:</span> <FeatureStatus status={feature.status} /></div>}
       {error && (
         <p
@@ -297,12 +348,6 @@ function FeatureDetail({ id }: { id: string }) {
           {error}
         </p>
       )}
-      {feature.data.proposals?.some((proposal) => proposal.status === ProposalStatus.PENDING) && (
-        <section className="space-y-3 rounded-xl border border-border bg-card p-5" aria-labelledby="proposals-heading">
-          <div><h2 id="proposals-heading" className="text-lg font-semibold">{t("coordinator.questions.proposalsTitle")}</h2><p className="mt-1 text-sm text-muted-foreground">{t("coordinator.questions.proposalsHelp")}</p></div>
-          <Proposals feature={feature} actions={questions} />
-        </section>
-      )}
       <QuestionList
         feature={feature}
         pending={pending}
@@ -311,6 +356,10 @@ function FeatureDetail({ id }: { id: string }) {
         onDraft={questions.draftQuestion}
         onSend={questions.sendQuestion}
         onCheck={questions.checkQuestion}
+        onCancelFollowUp={questions.cancelQuestionFollowUp}
+        onRecheckFollowUp={questions.recheckQuestionFollowUp}
+        onScheduleFollowUp={questions.scheduleQuestionFollowUp}
+        onSyncReplies={questions.syncReplies}
         sending={questions.sending}
       />
       {!isReviewInstruction(feature.data) && <QuestionReview

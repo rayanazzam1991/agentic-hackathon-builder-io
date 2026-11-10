@@ -28,6 +28,10 @@ export function useQuestionActions(
   const discord = useActionMutation("update-feature-discord");
   const send = useActionMutation("send-feature-discord-question");
   const check = useActionMutation("check-feature-discord-replies");
+  const sync = useActionMutation("sync-feature-discord-replies");
+  const scheduleFollowUp = useActionMutation("schedule-discord-followup");
+  const cancelFollowUp = useActionMutation("cancel-discord-followup");
+  const recheckFollowUp = useActionMutation("check-discord-followup");
   const [error, setError] = useState<string>();
 
   async function guarded(write: () => Promise<unknown>) {
@@ -59,10 +63,26 @@ export function useQuestionActions(
           change: { event: DiscordChange.QUESTION_DRAFT, questionId },
         }),
       ),
-    sendQuestion: (questionId: string) =>
-      guarded(() => send.mutateAsync({ id, revision, questionId })),
+    sendQuestion: (questionId: string, followUpHours?: number) =>
+      guarded(() =>
+        send.mutateAsync({
+          id,
+          revision,
+          questionId,
+          ...(followUpHours ? { followUpHours } : {}),
+        }),
+      ),
     checkQuestion: (questionId: string) =>
       guarded(() => check.mutateAsync({ id, revision, questionId })),
+    syncReplies: () => guarded(() => sync.mutateAsync({ id })),
+    scheduleQuestionFollowUp: (questionId: string, hours: number) =>
+      guarded(() =>
+        scheduleFollowUp.mutateAsync({ id, revision, questionId, hours }),
+      ),
+    cancelQuestionFollowUp: (questionId: string) =>
+      guarded(() => cancelFollowUp.mutateAsync({ id, revision, questionId })),
+    recheckQuestionFollowUp: (questionId: string) =>
+      guarded(() => recheckFollowUp.mutateAsync({ id, revision, questionId })),
     editQuestion: (questionId: string, change: SuggestedQuestionChange) =>
       guarded(() => edit.mutateAsync({ id, revision, questionId, change })),
     reviewProposal: (

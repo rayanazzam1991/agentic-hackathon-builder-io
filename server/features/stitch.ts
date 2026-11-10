@@ -7,6 +7,7 @@ import {
 } from "@agent-native/core/mcp-client";
 import { getMcpManagerForCurrentRequest } from "@agent-native/core/server/agent-chat/mcp-glue";
 import {
+  MaxScreenshotBytes,
   StitchTool,
   FeatureSource,
   type FeatureData,
@@ -154,12 +155,82 @@ export function extractStitchText(payload: string, url: string) {
     throw new Error("Stitch screen text is empty or too large.");
   return text;
 }
-// Download HTML as inert text. Never execute scripts or load referenced assets.
+export type StitchScreenSource = FeatureData["sources"][number] & {
+  // In-memory capture only. live-sources.ts moves these bytes to private blob
+  // storage once every selected source succeeded, so a failed import leaves no
+  // orphaned file and SQL never stores binary payloads.
+  screenshotImage?: {
+    bytes: Uint8Array;
+    title: string;
+    capturedAt: string;
+    projectId: string;
+    screenId: string;
+  };
+};
+
+async function downloadBounded(
+  reader: Awaited<ReturnType<typeof stitchReader>>,
+  url: string,
+  limitBytes: number,
+  context: ActionRunContext,
+  label: string,
+) {
+  const response = await reader.fetchAsset(
+    url,
+    AbortSignal.any([
+      ...(context.signal ? [context.signal] : []),
+      AbortSignal.timeout(30000),
+    ]),
+  );
+  if (!response.ok || !response.body)
+    throw new Error(`Stitch ${label} download failed (${response.status}).`);
+  const chunks: Uint8Array[] = [];
+  let bytes = 0;
+  const stream = response.body.getReader();
+  try {
+    while (true) {
+      const next = await stream.read();
+      if (next.done) break;
+      bytes += next.value.byteLength;
+      if (bytes > limitBytes) {
+        await stream.cancel();
+        throw new Error(`Stitch ${label} exceeds the supported size.`);
+      }
+      chunks.push(next.value);
+    }
+  } finally {
+    stream.releaseLock();
+  }
+  return Buffer.concat(chunks);
+}
+
+// Google wraps screenshot downloads in a small JSON envelope:
+// {"imageMetadata":{"mimeType":"image/png"},"dataString":"<base64>"}. Older
+// links return the image directly. Decode only these two shapes and let the
+// screenshot store validate the actual image signature.
+export function decodeStitchScreenshot(payload: Uint8Array) {
+  const text = Buffer.from(payload).toString("utf8").trimStart();
+  if (!text.startsWith("{")) return Buffer.from(payload);
+  const envelope = z
+    .object({
+      imageMetadata: z.object({ mimeType: z.string().optional() }).optional(),
+      dataString: z.string().min(1).max(2 * 1024 * 1024),
+    })
+    .passthrough()
+    .parse(JSON.parse(text));
+  const bytes = Buffer.from(envelope.dataString, "base64");
+  if (bytes.byteLength === 0)
+    throw new Error("Stitch returned an empty screenshot.");
+  return bytes;
+}
+
+// Download the selected screen's exported HTML as inert text and its import-time
+// screenshot. Never execute scripts or load referenced assets.
 export async function readStitchScreen(
   projectId: string,
   screenId: string,
   context: ActionRunContext,
-): Promise<FeatureData["sources"][number]> {
+): Promise<StitchScreenSource> {
   StitchId.parse(projectId);
   StitchId.parse(screenId);
   const reader = await stitchReader();
@@ -173,48 +244,57 @@ export async function readStitchScreen(
       title: z.string().optional(),
       updateTime: z.string().optional(),
       htmlCode: z.object({ downloadUrl: z.string() }),
+      // Stitch exposes a static image per screen; project listings use the same
+      // field name. Accept the documented thumbnail, or a screen `screenshot`.
+      thumbnailScreenshot: z.object({ downloadUrl: z.string() }).optional(),
+      screenshot: z.object({ downloadUrl: z.string() }).optional(),
     })
     .passthrough()
     .parse(data.screen ?? data);
   if (screen.name !== name)
     throw new Error("Stitch returned a different screen.");
+  const image = screen.thumbnailScreenshot ?? screen.screenshot;
+  if (!image)
+    throw new Error(
+      "Stitch returned no screenshot for this screen. Pick a screen that has one; no review was created.",
+    );
   assertStitchAssetUrl(screen.htmlCode.downloadUrl);
-  const response = await reader.fetchAsset(
+  assertStitchAssetUrl(image.downloadUrl);
+  const htmlBytes = await downloadBounded(
+    reader,
     screen.htmlCode.downloadUrl,
-    AbortSignal.any([
-      ...(context.signal ? [context.signal] : []),
-      AbortSignal.timeout(30000),
-    ]),
+    1024 * 1024,
+    context,
+    "HTML",
   );
-  if (!response.ok || !response.body)
-    throw new Error(`Stitch HTML download failed (${response.status}).`);
-  const chunks: Uint8Array[] = [];
-  let bytes = 0;
-  const stream = response.body.getReader();
-  try {
-    while (true) {
-      const next = await stream.read();
-      if (next.done) break;
-      bytes += next.value.byteLength;
-      if (bytes > 1024 * 1024) {
-        await stream.cancel();
-        throw new Error("Stitch screen exceeds the supported size.");
-      }
-      chunks.push(next.value);
-    }
-  } finally {
-    stream.releaseLock();
-  }
-  const html = Buffer.concat(chunks).toString("utf8");
+  // Google may wrap the image in base64 JSON, so the transport bound is
+  // larger than the decoded image bound enforced by the screenshot store.
+  const imageBytes = await downloadBounded(
+    reader,
+    image.downloadUrl,
+    Math.ceil(MaxScreenshotBytes * 1.5),
+    context,
+    "screenshot",
+  );
+  const decodedImage = decodeStitchScreenshot(imageBytes);
+  const capturedAt = new Date().toISOString();
   const url = `https://stitch.withgoogle.com/projects/${projectId}?screenId=${screenId}`;
-  const text = extractStitchText(html, url);
+  const text = extractStitchText(htmlBytes.toString("utf8"), url);
+  const title = screen.title ?? "Stitch screen";
   return {
     kind: FeatureSource.STITCH,
     url,
-    capturedAt: new Date().toISOString(),
+    capturedAt,
     version: screen.updateTime ?? "Current at capture; no version supplied",
-    excerpt: `${screen.title ?? "Stitch screen"}\n${text}`,
+    excerpt: `${title}\n${text}`,
     scope:
-      "Selected screen's exported static HTML text. Scripts are not executed. Images, rendered visibility, prototype behaviour and other screens are not verified.",
+      "Selected screen's exported static HTML text and its import-time screenshot. Scripts are not executed. Interactions, responsive behaviour, other screens and later design changes are not verified.",
+    screenshotImage: {
+      bytes: decodedImage,
+      title,
+      capturedAt,
+      projectId,
+      screenId,
+    },
   };
 }

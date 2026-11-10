@@ -2,9 +2,14 @@ import { fail } from "@agent-native/core/action";
 import { assertAccess } from "@agent-native/core/sharing";
 import {
   DiscordChange,
+  DiscordFollowUpStatus,
   DiscordMentionPermission,
   DiscordDeliveryStatus,
+  DiscordSnowflake,
+  type DiscordFollowUp,
   type FeatureDiscord,
+  type DiscordPerson,
+  type DiscordRole,
   type DiscordRoleMappings,
   type DiscordThreadState,
 } from "@shared/features/discord";
@@ -40,6 +45,7 @@ import {
   loadDiscordDirectory,
 } from "./discord-directory";
 import { featureErrors } from "./errors";
+import { buildFollowUp } from "./discord-followup-schedule";
 import { readDiscordSetup, readSetupRoles, setupToBinding } from "./discord-settings";
 import { changeQuestion, getFeature, requireActor } from "./store";
 
@@ -65,22 +71,24 @@ async function trySaveData(
   current: Feature,
   data: FeatureData,
   detail: string,
-  options: { silentAtLimit?: boolean } = {},
+  options: { silentAtLimit?: boolean; silent?: boolean } = {},
 ) {
   const actor = requireActor();
-  if (data.activity.length >= 100) {
-    if (!options.silentAtLimit)
-      fail("This review reached its activity limit.", {
-        errorCode: "activity_limit",
+  if (!options.silent) {
+    if (data.activity.length >= 100) {
+      if (!options.silentAtLimit)
+        fail("This review reached its activity limit.", {
+          errorCode: "activity_limit",
+        });
+    } else
+      data.activity.push({
+        id: crypto.randomUUID(),
+        event: "Discord",
+        actor,
+        at: new Date().toISOString(),
+        detail,
       });
-  } else
-    data.activity.push({
-      id: crypto.randomUUID(),
-      event: "Discord",
-      actor,
-      at: new Date().toISOString(),
-      detail,
-    });
+  }
   const [saved] = await getDb()
     .update(schema.features)
     .set({ data, revision: current.revision + 1 })
@@ -93,8 +101,13 @@ async function trySaveData(
     .returning({ id: schema.features.id });
   return saved ? getFeature(current.id) : null;
 }
-async function saveData(current: Feature, data: FeatureData, detail: string) {
-  const saved = await trySaveData(current, data, detail);
+async function saveData(
+  current: Feature,
+  data: FeatureData,
+  detail: string,
+  options: { silent?: boolean } = {},
+) {
+  const saved = await trySaveData(current, data, detail, options);
   if (!saved)
     fail("Another edit won the race. Review the saved state before retrying.", {
       errorCode: "stale_revision",
@@ -191,9 +204,12 @@ function requireNoQuestionDelivery(feature: Feature) {
       "discord_delivery_pending",
     );
 }
-async function assertRecipientNotifiable(
+export async function assertRecipientNotifiable(
   binding: FeatureDiscord,
-  delivery: NonNullable<FeatureDiscord["delivery"]>,
+  delivery: {
+    recipientRole?: DiscordRole | undefined;
+    recipientPerson?: DiscordPerson | undefined;
+  },
 ) {
   if (delivery.recipientPerson) {
     await assertBotCanNotifyPerson(binding, delivery.recipientPerson.id);
@@ -219,7 +235,7 @@ async function assertRecipientNotifiable(
       "discord_unavailable",
     );
 }
-function allowedMentions(delivery: {
+export function allowedMentions(delivery: {
   recipientRole?: { id: string } | undefined;
   recipientPerson?: { id: string } | undefined;
 }) {
@@ -478,7 +494,9 @@ export async function updateDiscord(
     fresh.channel_id !== binding.channelId ||
     fresh.author.bot ||
     fresh.author.id !== candidate.authorId ||
-    fresh.message_reference?.message_id !== binding.delivery.messageId ||
+    !fresh.message_reference?.message_id ||
+    (fresh.message_reference.message_id !== binding.delivery.messageId &&
+      fresh.message_reference.message_id !== binding.followUp?.followUpMessageId) ||
     fresh.content !== candidate.text
   )
     throw featureErrors.noWrite(
@@ -486,7 +504,7 @@ export async function updateDiscord(
       "stale_revision",
       { statusCode: 409 },
     );
-  return changeQuestion(
+  const updated = await changeQuestion(
     id,
     revision,
     {
@@ -496,15 +514,42 @@ export async function updateDiscord(
     },
     candidate.url,
   );
+  const followUp = updated.data.discord?.followUp;
+  if (
+    followUp &&
+    (followUp.status === DiscordFollowUpStatus.SCHEDULED ||
+      followUp.status === DiscordFollowUpStatus.UNVERIFIED ||
+      followUp.status === DiscordFollowUpStatus.SENDING)
+  ) {
+    const binding = structuredClone(requireBinding(updated));
+    binding.followUp = {
+      ...followUp,
+      status: DiscordFollowUpStatus.ANSWERED,
+      stoppedAt: new Date().toISOString(),
+      answeredBy: `${fresh.author.username} (${fresh.author.id})`,
+      answeredAt: fresh.timestamp,
+      replyId: fresh.id,
+      lastError: null,
+      reason:
+        "The owner recorded this Discord reply; the pending follow-up was stopped.",
+    };
+    return save(
+      updated,
+      binding,
+      "Recorded a Discord reply. The pending follow-up was stopped.",
+    );
+  }
+  return updated;
 }
 
 export async function sendDiscordQuestion(
   id: string,
   revision: number,
   questionId?: string,
+  followUpHours?: number,
 ) {
   if (questionId && questionId !== PrimaryQuestionId)
-    return sendSuggestedQuestion(id, revision, questionId);
+    return sendSuggestedQuestion(id, revision, questionId, followUpHours);
   let current = await currentFeature(id, revision, true);
   let binding = structuredClone(requireBinding(current));
   if (binding.delivery?.status === DiscordDeliveryStatus.SENT)
@@ -516,6 +561,15 @@ export async function sendDiscordQuestion(
     throw featureErrors.noWrite(
       "A question is already pending, or no draft is saved. Check the delivery before retrying.",
       "discord_delivery_pending",
+    );
+  if (
+    followUpHours &&
+    !binding.delivery.recipientRole &&
+    !binding.delivery.recipientPerson
+  )
+    throw featureErrors.noWrite(
+      "Choose a recipient before enabling a follow-up.",
+      "invalid_transition",
     );
   // Check access before reserving. Only the reservation winner may perform POST.
   const verified = await verifyDiscordChannel(
@@ -562,11 +616,26 @@ export async function sendDiscordQuestion(
     )
       throw new Error("Delivery readback mismatch.");
     binding.delivery!.status = DiscordDeliveryStatus.SENT;
+    if (followUpHours)
+      binding.followUp = buildFollowUp({
+        featureId: id,
+        questionId: PrimaryQuestionId,
+        questionText: current.data.question.text,
+        guildId: binding.guildId,
+        channelId: binding.channelId,
+        delivery: binding.delivery!,
+        hours: followUpHours,
+        now: new Date(),
+        actor: requireActor(),
+        messageAt: result.timestamp,
+      });
     return {
       feature: await save(
         current,
         binding,
-        "Confirmed the Discord question by reading back the sent message.",
+        followUpHours
+          ? `Confirmed the Discord question by reading back the sent message. One automatic follow-up is scheduled in ${followUpHours} hour(s).`
+          : "Confirmed the Discord question by reading back the sent message.",
       ),
       changed: true,
     };
@@ -588,6 +657,7 @@ async function sendSuggestedQuestion(
   id: string,
   revision: number,
   questionId: string,
+  followUpHours?: number,
 ) {
   const current = await currentFeature(id, revision, true);
   const binding = requireBinding(current);
@@ -646,6 +716,7 @@ async function sendSuggestedQuestion(
     "Reserved one reviewed Discord question for delivery. Delivery is not yet confirmed.",
   );
   let messageId: string | null = null;
+  let messageAt: string | null = null;
   try {
     const result = DiscordMessage.parse(
       await api(`/channels/${binding.channelId}/messages`, {
@@ -656,6 +727,7 @@ async function sendSuggestedQuestion(
       }),
     );
     messageId = result.id;
+    messageAt = result.timestamp;
     const confirmed = DiscordMessage.parse(
       await api(`/channels/${binding.channelId}/messages/${result.id}`),
     );
@@ -687,8 +759,23 @@ async function sendSuggestedQuestion(
       (thread) => {
         thread.delivery!.status = DiscordDeliveryStatus.SENT;
         thread.delivery!.messageId = messageId;
+        if (followUpHours)
+          thread.followUp = buildFollowUp({
+            featureId: id,
+            questionId,
+            questionText: question.text,
+            guildId: binding.guildId,
+            channelId: binding.channelId,
+            delivery: thread.delivery!,
+            hours: followUpHours,
+            now: new Date(),
+            actor: requireActor(),
+            messageAt,
+          });
       },
-      "Confirmed one Discord question by reading back the sent message.",
+      followUpHours
+        ? `Confirmed one Discord question by reading back the sent message. One automatic follow-up is scheduled in ${followUpHours} hour(s).`
+        : "Confirmed one Discord question by reading back the sent message.",
     ),
     changed: true,
   };
@@ -742,13 +829,15 @@ function applyScan(
       delivery.status = DiscordDeliveryStatus.SENT;
     } else delivery.status = DiscordDeliveryStatus.UNCERTAIN;
   }
-  thread.replies = messages
+  const captured = messages
     .filter(
       (m) =>
         m.channel_id === binding.channelId &&
         !m.author.bot &&
         !!m.content.trim() &&
-        m.message_reference?.message_id === delivery.messageId,
+        !!m.message_reference?.message_id &&
+        (m.message_reference.message_id === delivery.messageId ||
+          m.message_reference.message_id === thread.followUp?.followUpMessageId),
     )
     .map((m) => ({
       id: m.id,
@@ -758,8 +847,119 @@ function applyScan(
       at: m.timestamp,
       url: discordPermalink(binding.guildId, binding.channelId, m.id),
     }));
+  // Keep earlier captures when they leave the bounded channel scan. Refresh
+  // captures still in the batch so edits and deleted messages are not trusted.
+  const scannedIds = new Set(messages.map((message) => message.id));
+  thread.replies = [...captured, ...thread.replies.filter((reply) => !scannedIds.has(reply.id))]
+    .sort((a, b) => b.at.localeCompare(a.at))
+    .slice(0, 100);
   thread.checkedAt = new Date().toISOString();
   thread.partial = messages.length === 100;
+}
+
+type FollowUpReplyDecision =
+  | {
+      status: "answered";
+      reply: { id: string; author: string; at: string };
+    }
+  | { status: "unverified"; reason: string }
+  | null;
+
+/** Positive reply evidence only: a manual check never turns "no reply seen"
+ * into a cancellation. Membership is verified for role recipients; a fetch
+ * failure becomes actionable `unverified` rather than an answer. */
+async function evaluateFollowUpFromMessages(
+  followUp: DiscordFollowUp | null | undefined,
+  binding: FeatureDiscord,
+  messages: z.infer<typeof DiscordMessage>[],
+): Promise<FollowUpReplyDecision> {
+  if (
+    !followUp ||
+    (followUp.status !== DiscordFollowUpStatus.SCHEDULED &&
+      followUp.status !== DiscordFollowUpStatus.UNVERIFIED)
+  )
+    return null;
+  const direct = messages.filter(
+    (message) =>
+      message.channel_id === binding.channelId &&
+      !message.author.bot &&
+      !!message.content.trim() &&
+      message.message_reference?.message_id === followUp.messageId,
+  );
+  if (followUp.recipientPerson) {
+    const match = direct.find(
+      (message) => message.author.id === followUp.recipientPerson!.id,
+    );
+    return match
+      ? {
+          status: "answered",
+          reply: {
+            id: match.id,
+            author: match.author.username,
+            at: match.timestamp,
+          },
+        }
+      : null;
+  }
+  if (!followUp.recipientRole) return null;
+  const api = await discordApi();
+  const checked = new Set<string>();
+  for (const message of direct) {
+    if (checked.has(message.author.id)) continue;
+    checked.add(message.author.id);
+    try {
+      const member = z
+        .object({ roles: z.array(DiscordSnowflake).max(1000) })
+        .parse(
+          await api(`/guilds/${binding.guildId}/members/${message.author.id}`),
+        );
+      if (member.roles.includes(followUp.recipientRole.id))
+        return {
+          status: "answered",
+          reply: {
+            id: message.id,
+            author: message.author.username,
+            at: message.timestamp,
+          },
+        };
+    } catch (error) {
+      if (error instanceof DiscordApiError && error.status === 404) continue;
+      return {
+        status: "unverified",
+        reason:
+          "Could not verify whether a replying member holds the reviewed role. The follow-up was not sent automatically.",
+      };
+    }
+  }
+  return null;
+}
+
+function applyFollowUpDecision(
+  thread: DiscordThreadState,
+  decision: FollowUpReplyDecision,
+) {
+  const followUp = thread.followUp;
+  if (
+    !decision ||
+    !followUp ||
+    (followUp.status !== DiscordFollowUpStatus.SCHEDULED &&
+      followUp.status !== DiscordFollowUpStatus.UNVERIFIED)
+  )
+    return;
+  const now = new Date().toISOString();
+  if (decision.status === "answered") {
+    followUp.status = DiscordFollowUpStatus.ANSWERED;
+    followUp.stoppedAt = now;
+    followUp.answeredBy = decision.reply.author;
+    followUp.answeredAt = decision.reply.at;
+    followUp.replyId = decision.reply.id;
+    followUp.reason = "A qualifying reply arrived before the follow-up was sent.";
+    followUp.lastError = null;
+    return;
+  }
+  followUp.status = DiscordFollowUpStatus.UNVERIFIED;
+  followUp.lastError = decision.reason;
+  followUp.reason = decision.reason;
 }
 
 export async function checkDiscordReplies(
@@ -773,19 +973,82 @@ export async function checkDiscordReplies(
     const known = findQuestion(current.data, questionId);
     assertScannable(known.discord ?? { delivery: null });
     const messages = await scanChannel(binding);
+    const decision = await evaluateFollowUpFromMessages(
+      known.discord?.followUp,
+      binding,
+      messages,
+    );
     // Re-read so a concurrent delivery of another question is not overwritten.
     return updateQuestionThread(
       id,
       questionId,
-      (thread) => applyScan(thread, binding, messages),
+      (thread) => {
+        applyScan(thread, binding, messages);
+        applyFollowUpDecision(thread, decision);
+      },
       "Checked the latest 100 channel messages for direct replies to one question. No reply was automatically recorded or approved.",
     );
   }
   assertScannable(binding);
-  applyScan(binding, binding, await scanChannel(binding));
+  const messages = await scanChannel(binding);
+  const decision = await evaluateFollowUpFromMessages(
+    binding.followUp,
+    binding,
+    messages,
+  );
+  applyScan(binding, binding, messages);
+  applyFollowUpDecision(binding, decision);
   return save(
     current,
     binding,
     "Checked the latest 100 channel messages for direct replies. No reply was automatically recorded or approved.",
+  );
+}
+
+function isScannableThread(thread: DiscordThreadState) {
+  const delivery = thread.delivery;
+  if (!delivery || delivery.status === DiscordDeliveryStatus.DRAFT) return false;
+  if (
+    delivery.status === DiscordDeliveryStatus.SENDING &&
+    delivery.requestedAt &&
+    Date.now() - Date.parse(delivery.requestedAt) < 60000
+  )
+    return false;
+  return true;
+}
+
+/**
+ * One channel read that refreshes replies for every sent question. Used by the
+ * feature page's foreground refresh; it never records an answer or approves.
+ * The save is silent so periodic refreshes cannot exhaust the activity limit.
+ */
+export async function syncDiscordReplies(id: string) {
+  requireActor();
+  await assertAccess(FeatureResource.TYPE, id, "editor");
+  const current = await getFeature(id);
+  if (current.data.sample) return current;
+  const data = structuredClone(current.data);
+  const binding = requireBinding({ ...current, data });
+  const entries: { thread: DiscordThreadState; questionId?: string }[] = [];
+  if (isScannableThread(binding)) entries.push({ thread: binding });
+  for (const question of data.questions ?? [])
+    if (question.discord && isScannableThread(question.discord))
+      entries.push({ thread: question.discord, questionId: question.id });
+  if (!entries.length) return current;
+  const messages = await scanChannel(binding);
+  for (const entry of entries) {
+    const decision = await evaluateFollowUpFromMessages(
+      entry.thread.followUp,
+      binding,
+      messages,
+    );
+    applyScan(entry.thread, binding, messages);
+    applyFollowUpDecision(entry.thread, decision);
+  }
+  return saveData(
+    current,
+    data,
+    `Checked the latest 100 channel messages for replies across ${entries.length} question(s).`,
+    { silent: true },
   );
 }

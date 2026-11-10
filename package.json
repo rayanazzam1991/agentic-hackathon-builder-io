@@ -14,7 +14,8 @@
     "script": "agent-native script",
     "test": "vitest --run --passWithNoTests",
     "agent-native:doctor": "agent-native doctor",
-    "dev:local": "node scripts/dev-local.mjs"
+    "dev:local": "node scripts/dev-local.mjs",
+    "postbuild": "node scripts/emit-followup-scheduled-function.mjs"
   },
   "dependencies": {
     "@agent-native/agentkit": "^0.223.0",

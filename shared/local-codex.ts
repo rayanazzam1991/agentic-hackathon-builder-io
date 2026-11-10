@@ -1,6 +1,6 @@
 export const LocalCodex = {
   ENGINE: "codex-cli",
-  MODEL: "gpt-6.1-sol",
+  MODEL: "gpt-6.1-terra",
   REASONING_EFFORT: "low",
   ENDPOINT: "/api/local-codex/chat",
   CANCEL_ENDPOINT: "/api/local-codex/cancel",

@@ -34,7 +34,7 @@ export function projectPrimaryQuestion(
   data: FeatureData,
   rowStatus?: QuestionStatus,
 ): FeatureQuestionView {
-  const { delivery, replies, checkedAt, partial } = data.discord ?? {};
+  const { delivery, replies, checkedAt, partial, followUp } = data.discord ?? {};
   // The owner-only send flow requires reviewing the exact text before a draft
   // is reserved, so any non-draft delivery implies the owner approved asking.
   const asked = !!delivery && delivery.status !== DiscordDeliveryStatus.DRAFT;
@@ -72,6 +72,7 @@ export function projectPrimaryQuestion(
             replies: replies ?? [],
             checkedAt: checkedAt ?? null,
             partial: partial ?? false,
+            ...(followUp ? { followUp } : {}),
           },
         }
       : {}),
