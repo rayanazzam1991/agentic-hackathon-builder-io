@@ -20,6 +20,7 @@ const mock = vi.hoisted(() => ({
   access: vi.fn(),
   messages: [] as any[],
   postCalls: 0,
+  loseNextSave: false,
 }));
 
 vi.mock("@agent-native/core/sharing", () => ({
@@ -39,6 +40,11 @@ vi.mock("../db", async () => {
         set: (patch: Record<string, unknown>) => ({
           where: () => ({
             returning: async () => {
+              if (mock.loseNextSave) {
+                mock.loseNextSave = false;
+                mock.row.revision++;
+                return [];
+              }
               if (patch.revision !== mock.row.revision + 1) return [];
               mock.row = {
                 ...mock.row,
@@ -183,6 +189,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mock.messages = [];
   mock.postCalls = 0;
+  mock.loseNextSave = false;
   mock.access.mockResolvedValue({ role: "owner" });
   mock.api.mockImplementation(async (path: string) => {
     if (path.includes("/messages?")) return mock.messages;
@@ -192,6 +199,29 @@ beforeEach(() => {
 });
 
 describe("bulk reply refresh", () => {
+  it("skips duplicate writes but saves new replies immediately", async () => {
+    const initial = await syncDiscordReplies("feature-1");
+    const unchanged = await syncDiscordReplies("feature-1");
+    expect(unchanged.changed).toBe(false);
+    expect(unchanged.feature.revision).toBe(initial.feature.revision);
+
+    mock.messages = [reply()];
+    const updated = await syncDiscordReplies("feature-1");
+    expect(updated.changed).toBe(true);
+    expect(question().discord!.replies.map((item) => item.id)).toEqual([replyId]);
+  });
+  it("rechecks and saves replies after a concurrent revision change", async () => {
+    mock.messages = [reply()];
+    mock.loseNextSave = true;
+    await syncDiscordReplies("feature-1");
+    expect(question().discord!.replies.map((item) => item.id)).toEqual([replyId]);
+    expect(mock.api).toHaveBeenCalledTimes(2);
+  });
+  it("captures replies when another channel message has a null reference", async () => {
+    mock.messages = [reply(), reply({ id: "1568996350421631139", message_reference: null })];
+    await syncDiscordReplies("feature-1");
+    expect(question().discord!.replies.map((item) => item.id)).toEqual([replyId]);
+  });
   it("captures replies to the follow-up and retains them outside the next scan", async () => {
     const followUpId = "1568996273380528221";
     question().discord!.followUp!.followUpMessageId = followUpId;

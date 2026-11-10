@@ -28,7 +28,9 @@ export function useQuestionActions(
   const discord = useActionMutation("update-feature-discord");
   const send = useActionMutation("send-feature-discord-question");
   const check = useActionMutation("check-feature-discord-replies");
-  const sync = useActionMutation("sync-feature-discord-replies");
+  const sync = useActionMutation("sync-feature-discord-replies", {
+    skipActionQueryInvalidation: true,
+  });
   const scheduleFollowUp = useActionMutation("schedule-discord-followup");
   const cancelFollowUp = useActionMutation("cancel-discord-followup");
   const recheckFollowUp = useActionMutation("check-discord-followup");
@@ -53,7 +55,8 @@ export function useQuestionActions(
       proposal.isPending ||
       discord.isPending ||
       send.isPending ||
-      check.isPending,
+      check.isPending ||
+      sync.isPending,
     sending: send.isPending,
     draftQuestion: (questionId: string) =>
       guarded(() =>
@@ -74,7 +77,10 @@ export function useQuestionActions(
       ),
     checkQuestion: (questionId: string) =>
       guarded(() => check.mutateAsync({ id, revision, questionId })),
-    syncReplies: () => guarded(() => sync.mutateAsync({ id })),
+    syncReplies: () => guarded(async () => {
+      const result = await sync.mutateAsync({ id });
+      if (result.revision !== revision) await refetch();
+    }),
     scheduleQuestionFollowUp: (questionId: string, hours: number) =>
       guarded(() =>
         scheduleFollowUp.mutateAsync({ id, revision, questionId, hours }),

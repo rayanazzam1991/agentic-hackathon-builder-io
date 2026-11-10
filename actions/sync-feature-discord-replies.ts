@@ -26,11 +26,15 @@ export default defineAction({
         { statusCode: 403 },
       );
     try {
-      const feature = await syncDiscordReplies(id);
-      return featureWriteReceipt(
+      const { feature, changed } = await syncDiscordReplies(id);
+      const receipt = featureWriteReceipt(
         feature,
-        "Refreshed Discord replies across sent questions. No message was sent.",
+        changed
+          ? "Refreshed Discord replies across sent questions."
+          : "No changes to Discord replies.",
       );
+      receipt._receipt.changed = changed;
+      return receipt;
     } catch (error) {
       if (isActionContractError(error)) throw error;
       return discordFailure(error);

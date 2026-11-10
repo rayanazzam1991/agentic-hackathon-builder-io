@@ -29,6 +29,7 @@ import {
   type FeatureQuestionItem,
 } from "@shared/features/types";
 import { and, eq } from "drizzle-orm";
+import { isDeepStrictEqual } from "node:util";
 import { z } from "zod";
 
 import { getDb, schema } from "../db";
@@ -1025,30 +1026,50 @@ function isScannableThread(thread: DiscordThreadState) {
 export async function syncDiscordReplies(id: string) {
   requireActor();
   await assertAccess(FeatureResource.TYPE, id, "editor");
-  const current = await getFeature(id);
-  if (current.data.sample) return current;
-  const data = structuredClone(current.data);
-  const binding = requireBinding({ ...current, data });
-  const entries: { thread: DiscordThreadState; questionId?: string }[] = [];
-  if (isScannableThread(binding)) entries.push({ thread: binding });
-  for (const question of data.questions ?? [])
-    if (question.discord && isScannableThread(question.discord))
-      entries.push({ thread: question.discord, questionId: question.id });
-  if (!entries.length) return current;
-  const messages = await scanChannel(binding);
-  for (const entry of entries) {
-    const decision = await evaluateFollowUpFromMessages(
-      entry.thread.followUp,
-      binding,
-      messages,
+  let current = await getFeature(id);
+  if (current.data.sample) return { feature: current, changed: false };
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const data = structuredClone(current.data);
+    const binding = requireBinding({ ...current, data });
+    const entries: DiscordThreadState[] = [];
+    if (isScannableThread(binding)) entries.push(binding);
+    for (const question of data.questions ?? [])
+      if (question.discord && isScannableThread(question.discord))
+        entries.push(question.discord);
+    if (!entries.length) return { feature: current, changed: false };
+    const messages = await scanChannel(binding);
+    let changed = false;
+    for (const thread of entries) {
+      const before = structuredClone(thread);
+      const decision = await evaluateFollowUpFromMessages(
+        thread.followUp,
+        binding,
+        messages,
+      );
+      applyScan(thread, binding, messages);
+      applyFollowUpDecision(thread, decision);
+      const checkedAt = thread.checkedAt;
+      thread.checkedAt = before.checkedAt;
+      // Write immediately for a real change. Persist an unchanged scan's
+      // timestamp at most once a minute to avoid competing with user edits.
+      if (
+        !before.checkedAt ||
+        Date.now() - Date.parse(before.checkedAt) >= 60_000 ||
+        !isDeepStrictEqual(before, thread)
+      ) {
+        thread.checkedAt = checkedAt;
+        changed = true;
+      }
+    }
+    if (!changed) return { feature: await getFeature(id), changed: false };
+    const saved = await trySaveData(
+      current,
+      data,
+      `Checked the latest 100 channel messages for replies across ${entries.length} question(s).`,
+      { silent: true },
     );
-    applyScan(entry.thread, binding, messages);
-    applyFollowUpDecision(entry.thread, decision);
+    if (saved) return { feature: saved, changed: true };
+    current = await getFeature(id);
   }
-  return saveData(
-    current,
-    data,
-    `Checked the latest 100 channel messages for replies across ${entries.length} question(s).`,
-    { silent: true },
-  );
+  fail("Another edit won the race. Refresh replies again.", { errorCode: "stale_revision", statusCode: 409 });
 }

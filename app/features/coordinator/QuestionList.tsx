@@ -112,29 +112,46 @@ export function QuestionList({
   pendingRef.current = pending;
   const syncRef = useRef(onSyncReplies);
   syncRef.current = onSyncReplies;
-  const lastSyncRef = useRef(0);
   useEffect(() => {
     if (!feature.canEdit || !hasSent) return;
-    lastSyncRef.current = 0;
-    let cancelled = false;
-    const tick = () => {
-      if (cancelled || document.visibilityState !== "visible") return;
-      if (pendingRef.current) return;
-      if (Date.now() - lastSyncRef.current < 60_000) return;
-      lastSyncRef.current = Date.now();
-      void syncRef.current().catch(() => undefined);
-    };
-    const timer = window.setTimeout(tick, 800);
-    const interval = window.setInterval(tick, 60_000);
-    const onVisibility = () => {
-      if (document.visibilityState === "visible") tick();
-    };
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => {
-      cancelled = true;
+    let timer: number | undefined;
+    let lastSync = -Infinity;
+    let syncing = false;
+    function tick() {
       window.clearTimeout(timer);
-      window.clearInterval(interval);
-      document.removeEventListener("visibilitychange", onVisibility);
+      timer = undefined;
+      if (document.visibilityState !== "visible") return;
+      if (syncing || pendingRef.current) {
+        timer = window.setTimeout(tick, 1_000);
+        return;
+      }
+      lastSync = performance.now();
+      syncing = true;
+      timer = window.setTimeout(tick, 10_000);
+      void syncRef.current()
+        .catch(() => undefined)
+        .finally(() => {
+          syncing = false;
+        });
+    }
+    const onReturn = () => {
+      if (document.visibilityState === "hidden") {
+        window.clearTimeout(timer);
+        timer = undefined;
+      } else if (performance.now() - lastSync >= 2_000) {
+        // Switching back from Discord should not wait for the periodic check.
+        tick();
+      } else if (timer === undefined) {
+        timer = window.setTimeout(tick, 2_000);
+      }
+    };
+    timer = window.setTimeout(tick, 800);
+    document.addEventListener("visibilitychange", onReturn);
+    window.addEventListener("focus", onReturn);
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onReturn);
+      window.removeEventListener("focus", onReturn);
     };
   }, [feature.canEdit, feature.id, hasSent]);
   return (
@@ -165,7 +182,7 @@ export function QuestionList({
                 size="sm"
                 variant="outline"
                 disabled={pending}
-                onClick={() => void onSyncReplies()}
+                onClick={() => void onSyncReplies().catch(() => undefined)}
               >
                 {pending
                   ? t("coordinator.questions.refreshingReplies")

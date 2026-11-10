@@ -28,8 +28,8 @@ export const DiscordMessage = z.object({
     bot: z.boolean().optional(),
   }),
   message_reference: z
-    .object({ message_id: DiscordSnowflake.optional() })
-    .optional(),
+    .object({ message_id: DiscordSnowflake.nullish() })
+    .nullish(),
 });
 export type DiscordMessage = z.infer<typeof DiscordMessage>;
 export function parseDiscordChannel(url: string) {
